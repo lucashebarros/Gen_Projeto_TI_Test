@@ -389,4 +389,5 @@ supabaseClient.auth.onAuthStateChange((event, session) => {
     }
     if (event === 'SIGNED_OUT') {
         clearApp();
-    }});
+    }
+});
