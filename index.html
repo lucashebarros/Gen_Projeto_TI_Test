@@ -1,11 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciador de Projetos</title>
     <link rel="icon" href="icon.png">
-    <link rel="stylesheet" href="styles.css">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -13,7 +12,6 @@
             padding: 0;
             background-color: #f9f9f9;
         }
-
         header {
             background-color: #57F572;
             color: rgb(0,0,0);
@@ -22,42 +20,48 @@
             text-align: center;
             font-size: 1.5rem;
         }
-
         header img {
             position: absolute;
             top: 0.5rem;
             left: 1rem;
             height: 50px;
         }
-
         main {
             padding: 2rem;
             max-width: 1000px;
             margin: auto;
         }
-
         table {
             width: 100%;
             border-collapse: collapse;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             background-color: white;
         }
-
         th, td {
             padding: 1rem;
             text-align: left;
             border-bottom: 1px solid #ddd;
+            vertical-align: top; /* Melhora o alinhamento vertical */
         }
-
         th {
             background-color: #57F572;
             color: rgb(0,0,0);
         }
-
         tr:nth-child(even) {
             background-color: #f2f2f2;
         }
-
+        /* Estilos para os campos editáveis */
+        td textarea, td input, td select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box; /* Garante que o padding não quebre o layout */
+        }
+        td textarea {
+            min-height: 80px; /* Altura mínima para o campo de situação */
+            resize: vertical;
+        }
         footer {
             text-align: center;
             padding: 1rem;
@@ -73,289 +77,45 @@
         Gerenciador de Projetos de BI
     </header>
 
-<main>
+    <main>
+        <main>
+    <div id="form-container" style="margin-bottom: 2rem; background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
+        <form id="add-project-form">
+            <div style="margin-bottom: 1rem;">
+                <label for="nome">Nome do Projeto:</label>
+                <input type="text" id="nome" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+            <button type="submit" style="background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;">Adicionar Projeto</button>
+        </form>
+    </div>
 
-        <table>
-
-            <thead>
-
-                <tr>
-
-                    <th>Projeto</th>
-
-                    <th>Situação Atual</th>
-
-                    <th>Prazo</th>
-
-                    <th>Prioridade</th>
-
-                </tr>
-
-            </thead>
-
-            <tbody>
-
-                <tr>
-
-                    <td>BI de Faturamento</td>
-
-                    <td>Em correção dos valores Sem Frota (Rhitiere enviou e-mail ao Raul para ajustar na banco de dados)</td>
-
-                    <td></td>
-
-                    <td>Alta Prioridade</td>
-
-                </tr> 
-
-                <tr>
-
-                    <td>BI Suprimentos</td>
-
-                    <td>Corrigindo diferença de valores entre BI de Suprimentos e BI de Abastecimento (BI de Abastecimento estava usando filtro baseado na Data da NF e de Suprimentos na Data do Pedido) </td>
-
-                    <td>23/09</td>
-
-                    <td>Média Prioridade</td>
-
-                </tr>
-                <tr>
-
-                    <td>BI Abastecimento (Base TOTVs)</td>
-
-                    <td>Verificando os caminhos possíveis para acertar os processos. Painel de Comparação Protheus x Atual.</td>
-
-                    <td>26/09</td>
-
-                    <td>Alta Prioridade</td>
-
-                </tr> 
-
-                <tr>
-
-                    <td>BI de Manutenção (DEIVID) </td>
-
-                    <td>Alinhamento para novo painel</td>
-
-                    <td>24/09</td>
-
-                    <td>Média Prioridade</td>
-
-                </tr>  
-
-                <tr>
-
-                    <td>BI Lubrificação</td>
-
-                    <td>Alinhamento com o Rogério (Bauru) sobre novo BI</td>
-
-                    <td>25/09</td>
-
-                    <td>Baixa Prioridade </td>
+    <table>
+        </table>
+</main>
+        <table>
+            <thead>
+                <tr>
+                    <th>Projeto</th>
+                    <th>Situação Atual</th>
+                    <th>Prazo</th>
+                    <th>Prioridade</th>
                 </tr>
-
-
-                <tr>
-
-                    <td>BI Fiscal/Contabil</td>
-
-                    <td>Validando informações com o Humberto</td>
-
-                    <td></td>
-
-                    <td>Média Prioridade </td>
-
-                </tr>   
-
-
-                </tr>
-
-                
-                <tr>
-
-                    <td>BI Recursos Humanos</td>
-
-                    <td>Aguardando validação da Marina sobre as horas extras incluídas</td>
-
-                    <td></td>
-
-                    <td>Média Prioridade</td>
-
-                </tr> 
-
-                <tr>
-
-                    <td>Comparativo de Recolhimento de Notas</td>
-
-                    <td>Feito a automatização do relatório do Quive. Felipe me enviou os PDFs, estou colocando na planilha para comparar</td>
-
-                </tr>
-          
-                <tr>
-
-                    <td>Automatização Rodnei</td>
-
-                    <td>Não tem o código fonte e o ajuste não funcionou, pois a página em que faz download dos relatórios mudou sua estrutura</td>
-
-                </tr>
-
-
-                <tr>
-
-                    <td>Cadastro Único (Agregados, Clientes e Veículos)</td>
-
-                    <td>
-                        Agregados: Foi colocado um novo campo na DA4 (Cadastro de Motorista) para identificar quem é agregado. <br>
-                        Clientes: Rodnei já faz esse cadastro do tomador.<br>
-                        Veículos: Luiz informou que todos os veículos antigos já estão desativados.
-                    </td>
-
-                    <td></td>
-
-                    <td>Média Prioridade</td>
-
-                </tr>
-
-                <tr>
-
-                    <td>BI Borracharia</td>
-
-                    <td>Aguardando projeto da Aucom</td>
-
-                    <td>A definir</td>
-
-                    <td>Baixa Prioridade </td>
-
-                </tr>
-
-                <tr>
-
-                    <td>BI de Pátio</td>
-
-                    <td>Em desenvolvimento com time do Raul da GR.</td>
-
-                    <td>A definir</td>
-
-                    <td>Baixa Prioridade</td>
-
-                </tr>
-
-                <tr>
-
-                    <td>BI de Faturamento (Protheus)</td>
-
-                    <td>Aguardando entrada do contas a receber.</td>
-
-                    <td>A definir</td>
-
-                </tr>
-
-                <tr>
-
-                    <td>BI Estoque</td>
-
-                    <td>Aguardando a priorização para dar inicio e alinhar com Matheus.</td>
-
-                    <td>A definir</td>
-
-                </tr>
-
-                <tr>
-
-                    <td>BI de Agregado</td>
-
-                    <td>Aguardando evolução no Totvs (Agus x Clóvis).</td>
-
-                    <td>A definir</td>
-
-                </tr>
-
-                <tr>
-
-                    <td>BI Contas a Pagar</td>
-
-                    <td>Verificando diferenças com comparativo do relatório do Protheus com a SE5.</td>
-
-                    <td></td>
-
-                    <td>Média Prioridade</td>
-
-                </tr>   
-                <tr>
-
-                    <td>BI de Controladoria</td>
-
-                    <td>Em funcionamento.</td>
-
-                    <td></td>
-
-                    <td>Média Prioridade</td>
-
-                </tr>  
-
-                <tr>
-
-                    <td>Integrações API - GR</td>
-
-                    <td>Todas as API integradas.</td>
-
-                    <td></td>
-
-                    <td>Baixa Prioridade</td>
-
-                </tr> 
-          
-
-                <tr>
-
-                    <td>Portal de BI</td>
-
-                    <td>Configurado e Operando.</td>
-
-                    <td>Concluído</td>
-
-                </tr>
-
-                <tr>
-
-                    <td>BI de Odômetro</td>
-
-                    <td>Entregue e funcionando.</td>
-
-                    <td>Concluído</td>
-
-                </tr>
-
-                <tr>
-
-                    <td>BI de Abastecimento (Base Excel)</td>
-
-                    <td>Entregue ao time de Abastecimento.</td>
-
-                    <td>Concluído</td>
-
-                </tr>
-
-                <tr>
-
-                    <td>BI WTMH (Thompson)</td>
-
-                    <td>Entregue e funcionando.</td>
-
-                    <td>Concluído</td>
-
-                </tr>
-
-            </tbody>
-
-        </table>
-
-    </main>
+            </thead>
+            <tbody id="project-list">
+                <tr>
+                    <td colspan="4" style="text-align: center;">Carregando projetos...</td>
+                </tr>
+            </tbody>
+        </table>
+    </main>
 
     <footer>
         Suporte BI &copy; 2024
     </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script src="script.js"></script>
 </body>
 </html>
-
-
-
