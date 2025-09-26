@@ -236,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Configura o formulário de adição
     const addForm = document.getElementById('add-project-form');
     //addForm.addEventListener('submit', adicionarProjeto);
-}
+});
 
 // Limpa a UI quando o usuário desloga
 function clearApp() {
