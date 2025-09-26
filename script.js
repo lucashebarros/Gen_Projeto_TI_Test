@@ -13,7 +13,8 @@ const projectListTbody = document.getElementById('project-list');
  * Função para CARREGAR os projetos do Supabase e renderizar na tabela.
  */
 async function carregarProjetos() {
-    projectListTbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Carregando projetos...</td></tr>';
+    // ATUALIZADO: colspan agora é 7
+    projectListTbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Carregando projetos...</td></tr>';
 
     const { data: projetos, error } = await supabaseClient
         .from('projetos')
@@ -22,22 +23,30 @@ async function carregarProjetos() {
 
     if (error) {
         console.error('Erro ao buscar projetos:', error);
-        projectListTbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: red;">Erro ao carregar projetos. Verifique o console.</td></tr>';
+        projectListTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: red;">Erro ao carregar projetos. Verifique o console.</td></tr>`;
         return;
     }
 
     projectListTbody.innerHTML = '';
 
     if (projetos.length === 0) {
-        projectListTbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Nenhum projeto encontrado. Adicione um novo acima.</td></tr>';
+        // ATUALIZADO: colspan agora é 7
+        projectListTbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhum projeto encontrado. Adicione um novo acima.</td></tr>';
         return;
     }
 
     projetos.forEach(projeto => {
         const tr = document.createElement('tr');
         tr.dataset.projectId = projeto.id;
+        // ATUALIZADO: Adicionadas as novas colunas (chamado, responsavel, priorizado)
         tr.innerHTML = `
             <td>${projeto.nome}</td>
+            <td>
+                <input type="text" value="${projeto.chamado || ''}" onblur="atualizarCampo(${projeto.id}, 'chamado', this.value)" style="width:100px;"/>
+            </td>
+            <td>
+                <input type="text" value="${projeto.responsavel || ''}" onblur="atualizarCampo(${projeto.id}, 'responsavel', this.value)" style="width:120px;"/>
+            </td>
             <td>
                 <textarea onblur="atualizarCampo(${projeto.id}, 'situacao', this.value)">${projeto.situacao || ''}</textarea>
             </td>
@@ -52,6 +61,9 @@ async function carregarProjetos() {
                     <option value="" ${!projeto.prioridade ? 'selected' : ''}>N/A</option>
                 </select>
             </td>
+            <td>
+                <input type="text" value="${projeto.priorizado || ''}" onblur="atualizarCampo(${projeto.id}, 'priorizado', this.value)" style="width:120px;"/>
+            </td>
         `;
         projectListTbody.appendChild(tr);
     });
@@ -59,6 +71,7 @@ async function carregarProjetos() {
 
 /**
  * Função para ATUALIZAR um campo específico de um projeto.
+ * (NENHUMA MUDANÇA NECESSÁRIA AQUI)
  */
 async function atualizarCampo(id, coluna, valor) {
     console.log(`Atualizando projeto ${id}, coluna ${coluna} para: "${valor}"`);
@@ -89,24 +102,31 @@ async function atualizarCampo(id, coluna, valor) {
 async function adicionarProjeto(event) {
     event.preventDefault();
 
-    // Pega os valores de todos os campos do formulário
+    // ATUALIZADO: Pega os valores dos novos campos
     const nome = document.getElementById('form-nome').value;
+    const chamado = document.getElementById('form-chamado').value;
     const situacao = document.getElementById('form-situacao').value;
     const prazo = document.getElementById('form-prazo').value;
+    const responsavel = document.getElementById('form-responsavel').value;
     const prioridade = document.getElementById('form-prioridade').value;
+    const priorizado = document.getElementById('form-priorizado').value;
 
     if (!nome) {
         alert('O nome do projeto é obrigatório.');
         return;
     }
 
+    // ATUALIZADO: Inclui os novos campos no objeto a ser inserido
     const { error } = await supabaseClient
         .from('projetos')
         .insert([{ 
             nome: nome, 
+            chamado: chamado || null,
+            responsavel: responsavel || null,
             situacao: situacao, 
-            prazo: prazo || null, // Envia nulo se o prazo estiver vazio
-            prioridade: prioridade 
+            prazo: prazo || null,
+            prioridade: prioridade,
+            priorizado: priorizado || null
         }]);
 
     if (error) {
