@@ -249,11 +249,83 @@ function clearApp() {
 // ----- FUNÇÕES DO GERENCIADOR (QUASE SEM MUDANÇAS) -----
 
 async function carregarProjetos() {
-    /* ... Sua função carregarProjetos de antes, sem nenhuma alteração ... */
+    // ATUALIZADO: colspan agora é 7
+    projectListTbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Carregando projetos...</td></tr>';
+
+    const { data: projetos, error } = await supabaseClient
+        .from('projetos')
+        .select('*')
+        .order('id', { ascending: true });
+
+    if (error) {
+        console.error('Erro ao buscar projetos:', error);
+        projectListTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: red;">Erro ao carregar projetos. Verifique o console.</td></tr>`;
+        return;
+    }
+
+    projectListTbody.innerHTML = '';
+
+    if (projetos.length === 0) {
+        // ATUALIZADO: colspan agora é 7
+        projectListTbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhum projeto encontrado. Adicione um novo acima.</td></tr>';
+        return;
+    }
+
+    projetos.forEach(projeto => {
+        const tr = document.createElement('tr');
+        tr.dataset.projectId = projeto.id;
+        // ATUALIZADO: Adicionadas as novas colunas (chamado, responsavel, priorizado)
+        tr.innerHTML = `
+            <td>${projeto.nome}</td>
+            <td>
+                <input type="text" value="${projeto.chamado || ''}" onblur="atualizarCampo(${projeto.id}, 'chamado', this.value)" style="width:100px;"/>
+            </td>
+            <td>
+                <input type="text" value="${projeto.responsavel || ''}" onblur="atualizarCampo(${projeto.id}, 'responsavel', this.value)" style="width:120px;"/>
+            </td>
+            <td>
+                <textarea onblur="atualizarCampo(${projeto.id}, 'situacao', this.value)">${projeto.situacao || ''}</textarea>
+            </td>
+            <td>
+                <input type="date" value="${projeto.prazo || ''}" onblur="atualizarCampo(${projeto.id}, 'prazo', this.value)" />
+            </td>
+            <td>
+                <select onchange="atualizarCampo(${projeto.id}, 'prioridade', this.value)">
+                    <option value="Alta" ${projeto.prioridade === 'Alta' ? 'selected' : ''}>Alta</option>
+                    <option value="Média" ${projeto.prioridade === 'Média' ? 'selected' : ''}>Média</option>
+                    <option value="Baixa" ${projeto.prioridade === 'Baixa' ? 'selected' : ''}>Baixa</option>
+                    <option value="" ${!projeto.prioridade ? 'selected' : ''}>N/A</option>
+                </select>
+            </td>
+            <td>
+                <input type="text" value="${projeto.priorizado || ''}" onblur="atualizarCampo(${projeto.id}, 'priorizado', this.value)" style="width:120px;"/>
+            </td>
+        `;
+        projectListTbody.appendChild(tr);
+    });
 }
 
 async function atualizarCampo(id, coluna, valor) {
-    /* ... Sua função atualizarCampo de antes, sem nenhuma alteração ... */
+    console.log(`Atualizando projeto ${id}, coluna ${coluna} para: "${valor}"`);
+
+    const { error } = await supabaseClient
+        .from('projetos')
+        .update({ [coluna]: valor })
+        .eq('id', id);
+
+    if (error) {
+        console.error('Erro ao atualizar o projeto:', error);
+        alert('Falha ao salvar a alteração. Verifique o console para mais detalhes.');
+    } else {
+        console.log('Projeto atualizado com sucesso!');
+        const tr = document.querySelector(`tr[data-project-id='${id}']`);
+        if (tr) {
+            tr.style.backgroundColor = '#d4edda';
+            setTimeout(() => {
+                tr.style.backgroundColor = '';
+            }, 1500);
+        }
+    }
 }
 
 async function adicionarProjeto(event) {
@@ -262,7 +334,12 @@ async function adicionarProjeto(event) {
     
     // Pega os valores dos forms...
     const nome = document.getElementById('form-nome').value;
-    // ... pegar todos os outros campos
+    const chamado = document.getElementById('form-chamado').value;
+    const situacao = document.getElementById('form-situacao').value;
+    const prazo = document.getElementById('form-prazo').value;
+    const responsavel = document.getElementById('form-responsavel').value;
+    const prioridade = document.getElementById('form-prioridade').value;
+    const priorizado = document.getElementById('form-priorizado').value;
 
     if (!nome) {
         alert('O nome do projeto é obrigatório.');
@@ -272,11 +349,24 @@ async function adicionarProjeto(event) {
     const { error } = await supabaseClient
         .from('projetos')
         .insert([{ 
-            // Objeto com todos os dados do projeto...
+            nome: nome, 
+            chamado: chamado || null,
+            responsavel: responsavel || null,
+            situacao: situacao, 
+            prazo: prazo || null,
+            prioridade: prioridade,
+            priorizado: priorizado || null
             user_id: user.id // A ÚNICA ADIÇÃO NECESSÁRIA!
         }]);
     
-    // ... resto da função igual a antes
+    if (error) {
+        console.error('Erro ao adicionar projeto:', error);
+        alert('Falha ao adicionar o projeto. Verifique o console e as permissões (RLS) no Supabase.');
+    } else {
+        console.log('Projeto adicionado com sucesso!');
+        document.getElementById('add-project-form').reset(); // Limpa o formulário
+        carregarProjetos(); // Recarrega a lista de projetos
+    }
 }
 
 
