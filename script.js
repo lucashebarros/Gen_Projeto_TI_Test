@@ -355,8 +355,8 @@ async function adicionarProjeto(event) {
             situacao: situacao, 
             prazo: prazo || null,
             prioridade: prioridade,
-            priorizado: priorizado || null
-            user_id: user.id // A ÚNICA ADIÇÃO NECESSÁRIA!
+            priorizado: priorizado || null,
+            user_id: user.id 
         }]);
     
     if (error) {
