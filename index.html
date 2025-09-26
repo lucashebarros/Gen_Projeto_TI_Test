@@ -75,9 +75,26 @@
     <header>
         <img src="logo.png" alt="Logo da Empresa">
         Gerenciador de Projetos de BI
+        <div id="user-session" style="font-size: 0.9rem; font-weight: normal; position: absolute; right: 1rem; top: 1.5rem;"></div>
     </header>
 
-<main>
+    <div id="auth-container" style="max-width: 400px; margin: 4rem auto; padding: 2rem; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-radius: 8px;">
+        <h2 id="auth-title">Login</h2>
+        <form id="auth-form">
+            <div style="margin-bottom: 1rem;">
+                <label for="email">Email:</label>
+                <input type="email" id="email" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label for="password">Senha:</label>
+                <input type="password" id="password" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+            <button type="submit" style="width: 100%; background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;">Entrar</button>
+        </form>
+        <p id="auth-toggle" style="text-align: center; margin-top: 1rem; cursor: pointer; color: #555;">Não tem uma conta? Cadastre-se</p>
+    </div>
+
+<main id="app-container" class="hidden">
     <div id="form-container" style="margin-bottom: 2rem; background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
         <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
         <form id="add-project-form" style="display: flex; flex-wrap: wrap; gap: 1rem;">
@@ -153,6 +170,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
