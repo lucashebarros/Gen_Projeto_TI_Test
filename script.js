@@ -12,48 +12,49 @@ const authForm = document.getElementById('auth-form');
 const headerAuthSection = document.getElementById('header-auth-section');
 const formWrapper = document.getElementById('form-wrapper');
 
-// 3. Lógica de Autenticação
-document.getElementById('login-button')?.addEventListener('click', () => authContainer.classList.remove('hidden'));
-document.getElementById('close-login-button')?.addEventListener('click', () => authContainer.classList.add('hidden'));
+// 3. Funções e Lógica de Autenticação
+function setupAuthListeners() {
+    document.getElementById('close-login-button')?.addEventListener('click', () => authContainer.classList.add('hidden'));
+    
+    let isLoginMode = true;
+    document.getElementById('auth-toggle').addEventListener('click', () => {
+        isLoginMode = !isLoginMode;
+        document.getElementById('auth-title').textContent = isLoginMode ? 'Login' : 'Cadastre-se';
+        authForm.querySelector('button').textContent = isLoginMode ? 'Entrar' : 'Cadastrar';
+        document.getElementById('auth-toggle').textContent = isLoginMode ? 'Não tem uma conta? Cadastre-se' : 'Já tem uma conta? Faça login';
+    });
 
-let isLoginMode = true;
-document.getElementById('auth-toggle').addEventListener('click', () => {
-    isLoginMode = !isLoginMode;
-    document.getElementById('auth-title').textContent = isLoginMode ? 'Login' : 'Cadastre-se';
-    authForm.querySelector('button').textContent = isLoginMode ? 'Entrar' : 'Cadastrar';
-    document.getElementById('auth-toggle').textContent = isLoginMode ? 'Não tem uma conta? Cadastre-se' : 'Já tem uma conta? Faça login';
-});
+    authForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const button = authForm.querySelector('button');
+        button.disabled = true; button.textContent = 'Aguarde...';
 
-authForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const button = authForm.querySelector('button');
-    button.disabled = true; button.textContent = 'Aguarde...';
-
-    let error = null;
-    if (isLoginMode) {
-        ({ error } = await supabaseClient.auth.signInWithPassword({ email, password }));
-    } else {
-        ({ error } = await supabaseClient.auth.signUp({ email, password }));
-        if (!error) {
-            alert('Cadastro realizado! Por favor, faça o login.');
-            document.getElementById('auth-toggle').click();
+        let error;
+        if (isLoginMode) {
+            ({ error } = await supabaseClient.auth.signInWithPassword({ email, password }));
+        } else {
+            ({ error } = await supabaseClient.auth.signUp({ email, password }));
+            if (!error) {
+                alert('Cadastro realizado! Por favor, faça o login.');
+                document.getElementById('auth-toggle').click();
+            }
         }
-    }
 
-    if (error) alert(error.message);
-    button.disabled = false; button.textContent = isLoginMode ? 'Entrar' : 'Cadastrar';
-});
+        if (error) alert(error.message);
+        button.disabled = false; button.textContent = isLoginMode ? 'Entrar' : 'Cadastrar';
+    });
+}
 
 async function logout() {
     await supabaseClient.auth.signOut();
 }
 
-// 4. Lógica de Controle de Estado (Admin vs. Público)
+// 4. Lógica de Controle de Estado (O CORAÇÃO DA SOLUÇÃO)
 
 function entrarModoAdmin(user) {
-    authContainer.classList.add('hidden'); // Esconde o modal de login
+    authContainer.classList.add('hidden'); // Garante que o modal de login desapareça
     headerAuthSection.innerHTML = `<span>Olá, ${user.email}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
     document.getElementById('logout-button').addEventListener('click', logout);
     
@@ -61,56 +62,52 @@ function entrarModoAdmin(user) {
     formWrapper.innerHTML = `
         <div id="form-container" style="margin-bottom: 2rem; background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
-            <form id="add-project-form"> </form>
+            <form id="add-project-form" style="display: flex; flex-wrap: wrap; gap: 1rem;">
+                <div style="flex: 2 1 60%;"><label for="form-nome">Nome do Projeto:</label><input type="text" id="form-nome" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
+                <div style="flex: 1 1 30%;"><label for="form-chamado">Nº do Chamado:</label><input type="text" id="form-chamado" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
+                <div style="flex: 1 1 100%;"><label for="form-situacao">Situação Atual:</label><textarea id="form-situacao" style="width: 100%; min-height: 60px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></textarea></div>
+                <div style="flex: 1 1 30%;"><label for="form-prazo">Prazo:</label><input type="date" id="form-prazo" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
+                <div style="flex: 1 1 30%;"><label for="form-responsavel">Responsável:</label><input type="text" id="form-responsavel" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
+                <div style="flex: 1 1 30%;"><label for="form-prioridade">Prioridade:</label><select id="form-prioridade" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"><option value="Alta">Alta</option><option value="Média" selected>Média</option><option value="Baixa">Baixa</option></select></div>
+                <div style="flex: 1 1 100%;"><label for="form-priorizado">Priorizado Por:</label><input type="text" id="form-priorizado" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
+                <div style="flex: 1 1 100%;"><button type="submit" style="background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;">Salvar Novo Projeto</button></div>
+            </form>
         </div>`;
-    
-    const formHtml = `
-        <div style="display: flex; flex-wrap: wrap; gap: 1rem;">
-            <div style="flex: 2 1 60%;"><label for="form-nome">Nome:</label><input type="text" id="form-nome" required style="width: 100%; padding: 8px;"></div>
-            <div style="flex: 1 1 30%;"><label for="form-chamado">Chamado:</label><input type="text" id="form-chamado" style="width: 100%; padding: 8px;"></div>
-            <div style="flex: 1 1 100%;"><label for="form-situacao">Situação:</label><textarea id="form-situacao" style="width: 100%; min-height: 60px; padding: 8px;"></textarea></div>
-            <div style="flex: 1 1 30%;"><label for="form-prazo">Prazo:</label><input type="date" id="form-prazo" style="width: 100%; padding: 8px;"></div>
-            <div style="flex: 1 1 30%;"><label for="form-responsavel">Responsável:</label><input type="text" id="form-responsavel" style="width: 100%; padding: 8px;"></div>
-            <div style="flex: 1 1 30%;"><label for="form-prioridade">Prioridade:</label><select id="form-prioridade" style="width: 100%; padding: 8px;"><option>Alta</option><option selected>Média</option><option>Baixa</option></select></div>
-            <div style="flex: 1 1 100%;"><label for="form-priorizado">Priorizado Por:</label><input type="text" id="form-priorizado" style="width: 100%; padding: 8px;"></div>
-            <div style="flex: 1 1 100%;"><button type="submit" style="background-color: #4CAF50; color: white; padding: 10px 15px; border: none; cursor: pointer;">Salvar</button></div>
-        </div>`;
-    document.getElementById('add-project-form').innerHTML = formHtml;
     document.getElementById('add-project-form').addEventListener('submit', adicionarProjeto);
-
-    carregarProjetos(true); // Recarrega a tabela em MODO ADMIN
+    
+    carregarProjetos(true); // Recarrega a tabela em MODO ADMIN (editável)
 }
 
 function entrarModoPublico() {
     headerAuthSection.innerHTML = `<button id="login-button">Admin / Login</button>`;
     document.getElementById('login-button').addEventListener('click', () => authContainer.classList.remove('hidden'));
-    formWrapper.innerHTML = ''; // Limpa o formulário de adição
-    carregarProjetos(false); // Carrega a tabela em MODO PÚBLICO
+    formWrapper.innerHTML = ''; // Limpa e esconde o formulário de adição
+    carregarProjetos(false); // Carrega a tabela em MODO PÚBLICO (somente leitura)
 }
 
-// 5. Funções do Gerenciador de Projetos
+// 5. Funções do Gerenciador de Projetos (CRUD)
 
 async function carregarProjetos(isAdmin) {
     const projectListTbody = document.getElementById('project-list');
     projectListTbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Carregando projetos...</td></tr>';
     const { data: projetos, error } = await supabaseClient.from('projetos').select('*').order('created_at', { ascending: false });
 
-    if (error) { projectListTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: red;">Erro ao carregar.</td></tr>`; return; }
+    if (error) { projectListTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: red;">Erro ao carregar projetos.</td></tr>`; return; }
     if (projetos.length === 0) { projectListTbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhum projeto encontrado.</td></tr>'; return; }
 
     projectListTbody.innerHTML = '';
     projetos.forEach(p => {
         const tr = document.createElement('tr');
-        if (isAdmin) {
+        if (isAdmin) { // Se for admin, renderiza campos editáveis
             tr.innerHTML = `
                 <td>${p.nome}</td>
-                <td><input type="text" value="${p.chamado||''}" onblur="atualizarCampo(${p.id}, 'chamado', this.value)"/></td>
-                <td><input type="text" value="${p.responsavel||''}" onblur="atualizarCampo(${p.id}, 'responsavel', this.value)"/></td>
+                <td><input type="text" value="${p.chamado||''}" onblur="atualizarCampo(${p.id}, 'chamado', this.value)" style="width:100px;"/></td>
+                <td><input type="text" value="${p.responsavel||''}" onblur="atualizarCampo(${p.id}, 'responsavel', this.value)" style="width:120px;"/></td>
                 <td><textarea onblur="atualizarCampo(${p.id}, 'situacao', this.value)">${p.situacao||''}</textarea></td>
                 <td><input type="date" value="${p.prazo||''}" onblur="atualizarCampo(${p.id}, 'prazo', this.value)" /></td>
                 <td><select onchange="atualizarCampo(${p.id}, 'prioridade', this.value)"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
-                <td><input type="text" value="${p.priorizado||''}" onblur="atualizarCampo(${p.id}, 'priorizado', this.value)"/></td>`;
-        } else {
+                <td><input type="text" value="${p.priorizado||''}" onblur="atualizarCampo(${p.id}, 'priorizado', this.value)" style="width:120px;"/></td>`;
+        } else { // Se for público, renderiza apenas texto
             tr.innerHTML = `
                 <td>${p.nome||''}</td>
                 <td>${p.chamado||''}</td>
@@ -124,30 +121,29 @@ async function carregarProjetos(isAdmin) {
     });
 }
 
-// As funções `adicionarProjeto` e `atualizarCampo` permanecem praticamente as mesmas de antes
-
 async function adicionarProjeto(event) {
     event.preventDefault();
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert('Sessão expirada.');
 
     const form = event.target;
-    const nome = form.querySelector('#form-nome').value;
-    const chamado = form.querySelector('#form-chamado').value;
-    const situacao = form.querySelector('#form-situacao').value;
-    const prazo = form.querySelector('#form-prazo').value;
-    const responsavel = form.querySelector('#form-responsavel').value;
-    const prioridade = form.querySelector('#form-prioridade').value;
-    const priorizado = form.querySelector('#form-priorizado').value;
+    const formData = {
+        nome: form.querySelector('#form-nome').value,
+        chamado: form.querySelector('#form-chamado').value,
+        situacao: form.querySelector('#form-situacao').value,
+        prazo: form.querySelector('#form-prazo').value || null,
+        responsavel: form.querySelector('#form-responsavel').value,
+        prioridade: form.querySelector('#form-prioridade').value,
+        priorizado: form.querySelector('#form-priorizado').value,
+        user_id: user.id
+    };
 
-    if (!nome) { alert('O nome é obrigatório.'); return; }
+    if (!formData.nome) { alert('O nome do projeto é obrigatório.'); return; }
 
-    const { error } = await supabaseClient.from('projetos').insert([{
-        nome, chamado, responsavel, situacao, prazo: prazo || null, prioridade, priorizado, user_id: user.id
-    }]);
+    const { error } = await supabaseClient.from('projetos').insert([formData]);
 
     if (error) { console.error(error); alert('Falha ao adicionar projeto.'); }
-    else { form.reset(); carregarProjetos(true); } // Recarrega no modo admin
+    else { form.reset(); carregarProjetos(true); }
 }
 
 async function atualizarCampo(id, coluna, valor) {
@@ -158,13 +154,16 @@ async function atualizarCampo(id, coluna, valor) {
         if (tr) { tr.style.backgroundColor = '#d4edda'; setTimeout(() => { tr.style.backgroundColor = ''; }, 1500); }
     }
 }
-window.atualizarCampo = atualizarCampo; // Torna a função acessível para o HTML
+window.atualizarCampo = atualizarCampo; // Permite que o HTML chame a função
 
-// 6. Ponto de Partida da Aplicação
-supabaseClient.auth.onAuthStateChange((_event, session) => {
-    if (session && session.user) {
-        entrarModoAdmin(session.user);
-    } else {
-        entrarModoPublico();
-    }
+// 6. PONTO DE PARTIDA DA APLICAÇÃO
+document.addEventListener('DOMContentLoaded', () => {
+    setupAuthListeners();
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
+        if (session && session.user) {
+            entrarModoAdmin(session.user);
+        } else {
+            entrarModoPublico();
+        }
+    });
 });
