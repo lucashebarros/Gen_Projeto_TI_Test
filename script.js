@@ -12,19 +12,10 @@ const authForm = document.getElementById('auth-form');
 const headerAuthSection = document.getElementById('header-auth-section');
 const formWrapper = document.getElementById('form-wrapper');
 
-// 3. Funções e Lógica de Autenticação
+// 3. Funções e Lógica de Autenticação (Apenas Login)
 function setupAuthListeners() {
-    // Garante que o botão 'X' sempre funcione para fechar o modal
     document.getElementById('close-login-button')?.addEventListener('click', () => {
         authContainer.classList.add('hidden');
-    });
-    
-    let isLoginMode = true;
-    document.getElementById('auth-toggle').addEventListener('click', () => {
-        isLoginMode = !isLoginMode;
-        document.getElementById('auth-title').textContent = isLoginMode ? 'Login' : 'Cadastre-se';
-        authForm.querySelector('button').textContent = isLoginMode ? 'Entrar' : 'Cadastrar';
-        document.getElementById('auth-toggle').textContent = isLoginMode ? 'Não tem uma conta? Cadastre-se' : 'Já tem uma conta? Faça login';
     });
 
     authForm.addEventListener('submit', async (event) => {
@@ -34,21 +25,12 @@ function setupAuthListeners() {
         const button = authForm.querySelector('button');
         button.disabled = true; button.textContent = 'Aguarde...';
 
-        let error;
-        if (isLoginMode) {
-            ({ error } = await supabaseClient.auth.signInWithPassword({ email, password }));
-        } else {
-            ({ error } = await supabaseClient.auth.signUp({ email, password }));
-            if (!error) {
-                alert('Cadastro realizado! Por favor, faça o login.');
-                document.getElementById('auth-toggle').click(); // Volta para tela de login
-            }
-        }
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
         if (error) alert(error.message);
         
         button.disabled = false; 
-        button.textContent = isLoginMode ? 'Entrar' : 'Cadastrar';
+        button.textContent = 'Entrar';
     });
 }
 
@@ -56,14 +38,13 @@ async function logout() {
     await supabaseClient.auth.signOut();
 }
 
-// 4. Lógica de Controle de Estado (O CORAÇÃO DA SOLUÇÃO)
-
+// 4. Lógica de Controle de Estado (Admin vs. Público)
 function entrarModoAdmin(user) {
-    authContainer.classList.add('hidden'); // Garante que o modal de login DESAPAREÇA
-    headerAuthSection.innerHTML = `<span>Olá, ${user.email}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
+    authContainer.classList.add('hidden');
+    const displayName = user.user_metadata.full_name || user.email;
+    headerAuthSection.innerHTML = `<span>Olá, ${displayName}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
     document.getElementById('logout-button').addEventListener('click', logout);
     
-    // Mostra o formulário de adição
     formWrapper.innerHTML = `
         <div id="form-container" style="margin-bottom: 2rem; background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
@@ -80,80 +61,49 @@ function entrarModoAdmin(user) {
         </div>`;
     document.getElementById('add-project-form').addEventListener('submit', adicionarProjeto);
     
-    carregarProjetos(true); // Recarrega a tabela em MODO ADMIN (editável)
+    carregarProjetos(true);
 }
 
 function entrarModoPublico() {
     headerAuthSection.innerHTML = `<button id="login-button">Admin / Login</button>`;
     document.getElementById('login-button').addEventListener('click', () => authContainer.classList.remove('hidden'));
-    formWrapper.innerHTML = ''; // Limpa e ESCONDE o formulário de adição
-    carregarProjetos(false); // Carrega a tabela em MODO PÚBLICO (somente leitura)
+    formWrapper.innerHTML = '';
+    carregarProjetos(false);
 }
 
 // 5. Funções do Gerenciador de Projetos (CRUD)
-
+// ... Nenhuma alteração necessária aqui ...
 async function carregarProjetos(isAdmin) {
     const projectListTbody = document.getElementById('project-list');
     projectListTbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Carregando projetos...</td></tr>';
     const { data: projetos, error } = await supabaseClient.from('projetos').select('*').order('created_at', { ascending: false });
-
     if (error) { projectListTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: red;">Erro ao carregar projetos.</td></tr>`; return; }
     if (projetos.length === 0) { projectListTbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhum projeto encontrado.</td></tr>'; return; }
-
     projectListTbody.innerHTML = '';
     projetos.forEach(p => {
         const tr = document.createElement('tr');
         if (isAdmin) {
             tr.dataset.projectId = p.id;
-            tr.innerHTML = `
-                <td>${p.nome}</td>
-                <td><input type="text" value="${p.chamado||''}" onblur="atualizarCampo(${p.id}, 'chamado', this.value)" style="width:100px;"/></td>
-                <td><input type="text" value="${p.responsavel||''}" onblur="atualizarCampo(${p.id}, 'responsavel', this.value)" style="width:120px;"/></td>
-                <td><textarea onblur="atualizarCampo(${p.id}, 'situacao', this.value)">${p.situacao||''}</textarea></td>
-                <td><input type="date" value="${p.prazo||''}" onblur="atualizarCampo(${p.id}, 'prazo', this.value)" /></td>
-                <td><select onchange="atualizarCampo(${p.id}, 'prioridade', this.value)"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
-                <td><input type="text" value="${p.priorizado||''}" onblur="atualizarCampo(${p.id}, 'priorizado', this.value)" style="width:120px;"/></td>`;
+            tr.innerHTML = `<td>${p.nome}</td><td><input type="text" value="${p.chamado||''}" onblur="atualizarCampo(${p.id}, 'chamado', this.value)" style="width:100px;"/></td><td><input type="text" value="${p.responsavel||''}" onblur="atualizarCampo(${p.id}, 'responsavel', this.value)" style="width:120px;"/></td><td><textarea onblur="atualizarCampo(${p.id}, 'situacao', this.value)">${p.situacao||''}</textarea></td><td><input type="date" value="${p.prazo||''}" onblur="atualizarCampo(${p.id}, 'prazo', this.value)" /></td><td><select onchange="atualizarCampo(${p.id}, 'prioridade', this.value)"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td><td><input type="text" value="${p.priorizado||''}" onblur="atualizarCampo(${p.id}, 'priorizado', this.value)" style="width:120px;"/></td>`;
         } else {
-            tr.innerHTML = `
-                <td>${p.nome||''}</td><td>${p.chamado||''}</td><td>${p.responsavel||''}</td><td>${p.situacao||''}</td>
-                <td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td>
-                <td>${p.prioridade||''}</td><td>${p.priorizado||''}</td>`;
+            tr.innerHTML = `<td>${p.nome||''}</td><td>${p.chamado||''}</td><td>${p.responsavel||''}</td><td>${p.situacao||''}</td><td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td><td>${p.prioridade||''}</td><td>${p.priorizado||''}</td>`;
         }
         projectListTbody.appendChild(tr);
     });
 }
-
 async function adicionarProjeto(event) {
     event.preventDefault();
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert('Sessão expirada.');
-    
     const form = event.target;
-    const formData = {
-        nome: form.querySelector('#form-nome').value,
-        chamado: form.querySelector('#form-chamado').value,
-        situacao: form.querySelector('#form-situacao').value,
-        prazo: form.querySelector('#form-prazo').value || null,
-        responsavel: form.querySelector('#form-responsavel').value,
-        prioridade: form.querySelector('#form-prioridade').value,
-        priorizado: form.querySelector('#form-priorizado').value,
-        user_id: user.id
-    };
-
+    const formData = {nome: form.querySelector('#form-nome').value,chamado: form.querySelector('#form-chamado').value,situacao: form.querySelector('#form-situacao').value,prazo: form.querySelector('#form-prazo').value || null,responsavel: form.querySelector('#form-responsavel').value,prioridade: form.querySelector('#form-prioridade').value,priorizado: form.querySelector('#form-priorizado').value,user_id: user.id};
     if (!formData.nome) { alert('O nome do projeto é obrigatório.'); return; }
-    
     const { error } = await supabaseClient.from('projetos').insert([formData]);
-    if (error) { console.error(error); alert('Falha ao adicionar projeto.'); }
-    else { form.reset(); carregarProjetos(true); }
+    if (error) { console.error(error); alert('Falha ao adicionar projeto.'); } else { form.reset(); carregarProjetos(true); }
 }
-
 async function atualizarCampo(id, coluna, valor) {
     const { error } = await supabaseClient.from('projetos').update({ [coluna]: valor }).eq('id', id);
-    if (error) console.error(error);
-    else {
-        const tr = document.querySelector(`tr[data-project-id='${id}']`);
-        if (tr) { tr.style.backgroundColor = '#d4edda'; setTimeout(() => { tr.style.backgroundColor = ''; }, 1500); }
-    }
+    if (error) console.error(error); else { const tr = document.querySelector(`tr[data-project-id='${id}']`); if (tr) { tr.style.backgroundColor = '#d4edda'; setTimeout(() => { tr.style.backgroundColor = ''; }, 1500); } }
 }
 window.atualizarCampo = atualizarCampo;
 
