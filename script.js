@@ -11,10 +11,11 @@ const authContainer = document.getElementById('auth-container');
 const authForm = document.getElementById('auth-form');
 const headerAuthSection = document.getElementById('header-auth-section');
 const formWrapper = document.getElementById('form-wrapper');
+// NOVO: Seleciona o campo de nome
+const nameFieldWrapper = document.getElementById('name-field-wrapper');
 
 // 3. Funções e Lógica de Autenticação
 function setupAuthListeners() {
-    // Garante que o botão 'X' sempre funcione para fechar o modal
     document.getElementById('close-login-button')?.addEventListener('click', () => {
         authContainer.classList.add('hidden');
     });
@@ -25,6 +26,13 @@ function setupAuthListeners() {
         document.getElementById('auth-title').textContent = isLoginMode ? 'Login' : 'Cadastre-se';
         authForm.querySelector('button').textContent = isLoginMode ? 'Entrar' : 'Cadastrar';
         document.getElementById('auth-toggle').textContent = isLoginMode ? 'Não tem uma conta? Cadastre-se' : 'Já tem uma conta? Faça login';
+
+        // NOVO: Mostra ou esconde o campo de nome ao trocar de modo
+        if (isLoginMode) {
+            nameFieldWrapper.classList.add('hidden');
+        } else {
+            nameFieldWrapper.classList.remove('hidden');
+        }
     });
 
     authForm.addEventListener('submit', async (event) => {
@@ -38,10 +46,27 @@ function setupAuthListeners() {
         if (isLoginMode) {
             ({ error } = await supabaseClient.auth.signInWithPassword({ email, password }));
         } else {
-            ({ error } = await supabaseClient.auth.signUp({ email, password }));
+            // NOVO: Pega o nome e envia junto com o cadastro
+            const fullName = document.getElementById('full_name').value;
+            if (!fullName) {
+                alert('Por favor, preencha seu nome.');
+                button.disabled = false; button.textContent = 'Cadastrar';
+                return;
+            }
+
+            ({ error } = await supabaseClient.auth.signUp({ 
+                email, 
+                password,
+                options: {
+                    data: {
+                        full_name: fullName
+                    }
+                }
+            }));
+
             if (!error) {
-                alert('Cadastro realizado! Por favor, faça o login.');
-                document.getElementById('auth-toggle').click(); // Volta para tela de login
+                alert('Cadastro realizado com sucesso! Por favor, faça o login.');
+                document.getElementById('auth-toggle').click();
             }
         }
 
@@ -56,14 +81,15 @@ async function logout() {
     await supabaseClient.auth.signOut();
 }
 
-// 4. Lógica de Controle de Estado (O CORAÇÃO DA SOLUÇÃO)
-
+// 4. Lógica de Controle de Estado
 function entrarModoAdmin(user) {
-    authContainer.classList.add('hidden'); // Garante que o modal de login DESAPAREÇA
-    headerAuthSection.innerHTML = `<span>Olá, ${user.email}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
+    authContainer.classList.add('hidden');
+    // NOVO: Usa o nome do usuário (user.user_metadata.full_name). Se não existir, usa o email.
+    const displayName = user.user_metadata.full_name || user.email;
+    headerAuthSection.innerHTML = `<span>Olá, ${displayName}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
     document.getElementById('logout-button').addEventListener('click', logout);
     
-    // Mostra o formulário de adição
+    // ... (O resto da função `entrarModoAdmin` continua igual)
     formWrapper.innerHTML = `
         <div id="form-container" style="margin-bottom: 2rem; background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
@@ -80,18 +106,18 @@ function entrarModoAdmin(user) {
         </div>`;
     document.getElementById('add-project-form').addEventListener('submit', adicionarProjeto);
     
-    carregarProjetos(true); // Recarrega a tabela em MODO ADMIN (editável)
+    carregarProjetos(true);
 }
 
 function entrarModoPublico() {
     headerAuthSection.innerHTML = `<button id="login-button">Admin / Login</button>`;
     document.getElementById('login-button').addEventListener('click', () => authContainer.classList.remove('hidden'));
-    formWrapper.innerHTML = ''; // Limpa e ESCONDE o formulário de adição
-    carregarProjetos(false); // Carrega a tabela em MODO PÚBLICO (somente leitura)
+    formWrapper.innerHTML = '';
+    carregarProjetos(false);
 }
 
 // 5. Funções do Gerenciador de Projetos (CRUD)
-
+// ... (Nenhuma alteração necessária nas funções carregarProjetos, adicionarProjeto, atualizarCampo)
 async function carregarProjetos(isAdmin) {
     const projectListTbody = document.getElementById('project-list');
     projectListTbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Carregando projetos...</td></tr>';
