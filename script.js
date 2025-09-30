@@ -14,7 +14,10 @@ const formWrapper = document.getElementById('form-wrapper');
 
 // 3. Funções e Lógica de Autenticação
 function setupAuthListeners() {
-    document.getElementById('close-login-button')?.addEventListener('click', () => authContainer.classList.add('hidden'));
+    // Garante que o botão 'X' sempre funcione para fechar o modal
+    document.getElementById('close-login-button')?.addEventListener('click', () => {
+        authContainer.classList.add('hidden');
+    });
     
     let isLoginMode = true;
     document.getElementById('auth-toggle').addEventListener('click', () => {
@@ -38,12 +41,14 @@ function setupAuthListeners() {
             ({ error } = await supabaseClient.auth.signUp({ email, password }));
             if (!error) {
                 alert('Cadastro realizado! Por favor, faça o login.');
-                document.getElementById('auth-toggle').click();
+                document.getElementById('auth-toggle').click(); // Volta para tela de login
             }
         }
 
         if (error) alert(error.message);
-        button.disabled = false; button.textContent = isLoginMode ? 'Entrar' : 'Cadastrar';
+        
+        button.disabled = false; 
+        button.textContent = isLoginMode ? 'Entrar' : 'Cadastrar';
     });
 }
 
@@ -54,11 +59,11 @@ async function logout() {
 // 4. Lógica de Controle de Estado (O CORAÇÃO DA SOLUÇÃO)
 
 function entrarModoAdmin(user) {
-    authContainer.classList.add('hidden'); // Garante que o modal de login desapareça
+    authContainer.classList.add('hidden'); // Garante que o modal de login DESAPAREÇA
     headerAuthSection.innerHTML = `<span>Olá, ${user.email}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
     document.getElementById('logout-button').addEventListener('click', logout);
     
-    // Mostra o formulário de adição de projetos
+    // Mostra o formulário de adição
     formWrapper.innerHTML = `
         <div id="form-container" style="margin-bottom: 2rem; background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
@@ -81,7 +86,7 @@ function entrarModoAdmin(user) {
 function entrarModoPublico() {
     headerAuthSection.innerHTML = `<button id="login-button">Admin / Login</button>`;
     document.getElementById('login-button').addEventListener('click', () => authContainer.classList.remove('hidden'));
-    formWrapper.innerHTML = ''; // Limpa e esconde o formulário de adição
+    formWrapper.innerHTML = ''; // Limpa e ESCONDE o formulário de adição
     carregarProjetos(false); // Carrega a tabela em MODO PÚBLICO (somente leitura)
 }
 
@@ -98,7 +103,8 @@ async function carregarProjetos(isAdmin) {
     projectListTbody.innerHTML = '';
     projetos.forEach(p => {
         const tr = document.createElement('tr');
-        if (isAdmin) { // Se for admin, renderiza campos editáveis
+        if (isAdmin) {
+            tr.dataset.projectId = p.id;
             tr.innerHTML = `
                 <td>${p.nome}</td>
                 <td><input type="text" value="${p.chamado||''}" onblur="atualizarCampo(${p.id}, 'chamado', this.value)" style="width:100px;"/></td>
@@ -107,15 +113,11 @@ async function carregarProjetos(isAdmin) {
                 <td><input type="date" value="${p.prazo||''}" onblur="atualizarCampo(${p.id}, 'prazo', this.value)" /></td>
                 <td><select onchange="atualizarCampo(${p.id}, 'prioridade', this.value)"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
                 <td><input type="text" value="${p.priorizado||''}" onblur="atualizarCampo(${p.id}, 'priorizado', this.value)" style="width:120px;"/></td>`;
-        } else { // Se for público, renderiza apenas texto
+        } else {
             tr.innerHTML = `
-                <td>${p.nome||''}</td>
-                <td>${p.chamado||''}</td>
-                <td>${p.responsavel||''}</td>
-                <td>${p.situacao||''}</td>
+                <td>${p.nome||''}</td><td>${p.chamado||''}</td><td>${p.responsavel||''}</td><td>${p.situacao||''}</td>
                 <td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td>
-                <td>${p.prioridade||''}</td>
-                <td>${p.priorizado||''}</td>`;
+                <td>${p.prioridade||''}</td><td>${p.priorizado||''}</td>`;
         }
         projectListTbody.appendChild(tr);
     });
@@ -125,7 +127,7 @@ async function adicionarProjeto(event) {
     event.preventDefault();
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert('Sessão expirada.');
-
+    
     const form = event.target;
     const formData = {
         nome: form.querySelector('#form-nome').value,
@@ -139,9 +141,8 @@ async function adicionarProjeto(event) {
     };
 
     if (!formData.nome) { alert('O nome do projeto é obrigatório.'); return; }
-
+    
     const { error } = await supabaseClient.from('projetos').insert([formData]);
-
     if (error) { console.error(error); alert('Falha ao adicionar projeto.'); }
     else { form.reset(); carregarProjetos(true); }
 }
@@ -154,7 +155,7 @@ async function atualizarCampo(id, coluna, valor) {
         if (tr) { tr.style.backgroundColor = '#d4edda'; setTimeout(() => { tr.style.backgroundColor = ''; }, 1500); }
     }
 }
-window.atualizarCampo = atualizarCampo; // Permite que o HTML chame a função
+window.atualizarCampo = atualizarCampo;
 
 // 6. PONTO DE PARTIDA DA APLICAÇÃO
 document.addEventListener('DOMContentLoaded', () => {
