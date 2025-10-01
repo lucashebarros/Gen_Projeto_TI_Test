@@ -3,7 +3,6 @@
 const SUPABASE_URL = 'https://rprwkinapuwsdpiifrdl.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwcndraW5hcHV3c2RwaWlmcmRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyMDQ4NjAsImV4cCI6MjA3Mzc4MDg2MH0.enGl5j313BI8cMxe6soGhViHd6667z8usxtJXPR2F9k';
 
-// ARQUIVO: script.js (VERSÃO CORRETA - APENAS LOGIN)
 const { createClient } = supabase;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -13,52 +12,28 @@ const authForm = document.getElementById('auth-form');
 const headerAuthSection = document.getElementById('header-auth-section');
 const formWrapper = document.getElementById('form-wrapper');
 
-// 3. Funções e Lógica de Autenticação (Apenas Login)
+// 3. Funções e Lógica de Autenticação
 function setupAuthListeners() {
-    // Garante que o botão 'X' sempre funcione para fechar o modal
-    document.getElementById('close-login-button')?.addEventListener('click', () => {
-        authContainer.classList.add('hidden');
-    });
-
-    // Lida com o envio do formulário de login (sem modo de cadastro)
+    document.getElementById('close-login-button')?.addEventListener('click', () => { authContainer.classList.add('hidden'); });
     authForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         const button = authForm.querySelector('button');
         button.disabled = true; button.textContent = 'Aguarde...';
-
         const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-
         if (error) alert(error.message);
-        
-        button.disabled = false; 
-        button.textContent = 'Entrar';
+        button.disabled = false; button.textContent = 'Entrar';
     });
 }
-
-async function logout() {
-    await supabaseClient.auth.signOut();
-}
+async function logout() { await supabaseClient.auth.signOut(); }
 
 // 4. Lógica de Controle de Estado (Admin vs. Público)
 async function entrarModoAdmin(user) {
     authContainer.classList.add('hidden');
-
-    // Busca o perfil do usuário na tabela 'profiles'
-    const { data: profile, error } = await supabaseClient
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single();
-
-    if (error) {
-        console.error("Erro ao buscar perfil:", error.message);
-    }
-    
-    // Usa o nome do perfil ou o email como alternativa
+    const { data: profile, error } = await supabaseClient.from('profiles').select('full_name').eq('id', user.id).single();
+    if (error) { console.error("Erro ao buscar perfil:", error.message); }
     const displayName = profile?.full_name || user.email;
-
     headerAuthSection.innerHTML = `<span>Olá, ${displayName}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
     document.getElementById('logout-button').addEventListener('click', logout);
     
@@ -75,9 +50,16 @@ async function entrarModoAdmin(user) {
                 <div style="flex: 1 1 100%;"><label for="form-priorizado">Priorizado Por:</label><input type="text" id="form-priorizado" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
                 <div style="flex: 1 1 100%;"><button type="submit" style="background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;">Salvar Novo Projeto</button></div>
             </form>
-        </div>`;
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Projeto</th><th>Nº Chamado</th><th>Responsável</th><th>Situação Atual</th><th>Prazo</th><th>Prioridade</th><th>Priorizado Por</th>
+                    <th>Ações</th> </tr>
+            </thead>
+            <tbody id="project-list"></tbody>
+        </table>`;
     document.getElementById('add-project-form').addEventListener('submit', adicionarProjeto);
-    
     carregarProjetos(true);
 }
 
@@ -92,16 +74,25 @@ function entrarModoPublico() {
 async function carregarProjetos(isAdmin) {
     const colspan = isAdmin ? 8 : 7; // NOVO: Ajusta o colspan
     const projectListTbody = document.getElementById('project-list');
-    projectListTbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Carregando projetos...</td></tr>';
+    projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Carregando projetos...</td></tr>`;
     const { data: projetos, error } = await supabaseClient.from('projetos').select('*').order('created_at', { ascending: false });
-    if (error) { projectListTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: red;">Erro ao carregar projetos.</td></tr>`; return; }
-    if (projetos.length === 0) { projectListTbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhum projeto encontrado.</td></tr>'; return; }
+    if (error) { projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; color: red;">Erro ao carregar projetos.</td></tr>`; return; }
+    if (projetos.length === 0) { projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Nenhum projeto encontrado.</td></tr>`; return; }
     projectListTbody.innerHTML = '';
     projetos.forEach(p => {
         const tr = document.createElement('tr');
         if (isAdmin) {
             tr.dataset.projectId = p.id;
-            tr.innerHTML = `<td>${p.nome}</td><td><input type="text" value="${p.chamado||''}" onblur="atualizarCampo(${p.id}, 'chamado', this.value)" style="width:100px;"/></td><td><input type="text" value="${p.responsavel||''}" onblur="atualizarCampo(${p.id}, 'responsavel', this.value)" style="width:120px;"/></td><td><textarea onblur="atualizarCampo(${p.id}, 'situacao', this.value)">${p.situacao||''}</textarea></td><td><input type="date" value="${p.prazo||''}" onblur="atualizarCampo(${p.id}, 'prazo', this.value)" /></td><td><select onchange="atualizarCampo(${p.id}, 'prioridade', this.value)"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td><td><input type="text" value="${p.priorizado||''}" onblur="atualizarCampo(${p.id}, 'priorizado', this.value)" style="width:120px;"/></td>`;
+            tr.innerHTML = `
+                <td>${p.nome}</td>
+                <td><input type="text" value="${p.chamado||''}" onblur="atualizarCampo(${p.id}, 'chamado', this.value)" style="width:100px;"/></td>
+                <td><input type="text" value="${p.responsavel||''}" onblur="atualizarCampo(${p.id}, 'responsavel', this.value)" style="width:120px;"/></td>
+                <td><textarea onblur="atualizarCampo(${p.id}, 'situacao', this.value)">${p.situacao||''}</textarea></td>
+                <td><input type="date" value="${p.prazo||''}" onblur="atualizarCampo(${p.id}, 'prazo', this.value)" /></td>
+                <td><select onchange="atualizarCampo(${p.id}, 'prioridade', this.value)"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
+                <td><input type="text" value="${p.priorizado||''}" onblur="atualizarCampo(${p.id}, 'priorizado', this.value)" style="width:120px;"/></td>
+                <td><button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">Excluir</button></td>
+            `;
         } else {
             tr.innerHTML = `<td>${p.nome||''}</td><td>${p.chamado||''}</td><td>${p.responsavel||''}</td><td>${p.situacao||''}</td><td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td><td>${p.prioridade||''}</td><td>${p.priorizado||''}</td>`;
         }
@@ -144,9 +135,9 @@ async function deletarProjeto(id, nome) {
     }
 }
 
-
+// Torna as funções acessíveis para o HTML (onblur, onchange, onclick)
 window.atualizarCampo = atualizarCampo;
-window.deletarProjeto = deletarProjeto; 
+window.deletarProjeto = deletarProjeto; // NOVO
 
 // 6. PONTO DE PARTIDA DA APLICAÇÃO
 document.addEventListener('DOMContentLoaded', () => {
