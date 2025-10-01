@@ -6,80 +6,79 @@
     <title>Gerenciador de Projetos</title>
     <link rel="icon" href="icon.png">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f9f9f9;
-        }
-        header {
-            background-color: #57F572;
-            color: rgb(0,0,0);
-            padding: 1rem;
-            font-weight: bold;
-            text-align: center;
-            font-size: 1.5rem;
-        }
-        header img {
-            position: absolute;
-            top: 0.5rem;
-            left: 1rem;
-            height: 50px;
-        }
-        main {
-            padding: 2rem;
-            max-width: 1000px;
-            margin: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: separate; /* ALTERADO */
-            border-spacing: 0 8px;   /* ADICIONADO */
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            background-color: white;
-        }
-        th, td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-            vertical-align: top; /* Melhora o alinhamento vertical */
-        }
-        th {
-            background-color: #57F572;
-            color: rgb(0,0,0);
-        }
-        tr:nth-child(even) {
-            background-color: #f2f2f2;
-        }
-        /* Estilos para os campos editáveis */
-        td textarea, td input, td select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box; /* Garante que o padding não quebre o layout */
-        }
-        td textarea {
-            min-height: 120px; /* Altura mínima para o campo de situação */
-            resize: vertical;
-        }
-        footer {
-            text-align: center;
-            padding: 1rem;
-            background-color: #4CAF50;
-            color: white;
-            margin-top: 2rem;
-        }
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f9f9f9;
+    }
+    header {
+        background-color: #57F572;
+        color: rgb(0,0,0);
+        padding: 1rem;
+        font-weight: bold;
+        text-align: center;
+        font-size: 1.5rem;
+    }
+    header img {
+        position: absolute;
+        top: 0.5rem;
+        left: 1rem;
+        height: 50px;
+    }
+    main {
+        padding: 2rem;
+        max-width: 1000px; /* Ajuste para max-width se a tabela de ações quebrar o layout */
+        margin: auto;
+    }
+    table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        background-color: white;
+    }
+    th, td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+        vertical-align: top;
+    }
+    th {
+        background-color: #57F572;
+        color: rgb(0,0,0);
+    }
+    tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
+    /* Estilos para os campos editáveis */
+    td textarea, td input, td select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+    }
+    td textarea {
+        min-height: 120px; /* A ALTERAÇÃO ESTÁ AQUI */
+        resize: vertical;
+    }
+    footer {
+        text-align: center;
+        padding: 1rem;
+        background-color: #4CAF50;
+        color: white;
+        margin-top: 2rem;
+    }
+    #auth-container {
+        display: none;
+    }
+    #auth-container:not(.hidden) {
+        display: flex;
+    }
+</style>
 
-        /* Adicione estas regras ao seu CSS dentro da tag <style> */
-#auth-container {
-    display: none; /* Começa escondido por padrão */
-}
-
-#auth-container:not(.hidden) {
-    display: flex; /* Mostra como flexbox APENAS se NÃO tiver a classe .hidden */
-}
-    </style>
+    
 </head><body>
     <header>
         <img src="logo.png" alt="Logo da Empresa">
@@ -129,5 +128,6 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
