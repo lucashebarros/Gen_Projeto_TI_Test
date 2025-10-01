@@ -85,24 +85,20 @@ async function logout() {
 function entrarModoAdmin(user) {
     authContainer.classList.add('hidden');
 
-    // --- INÍCIO DA ALTERAÇÃO ---
-    // 1. Busca o perfil do usuário na nova tabela 'profiles'
     const { data: profile, error } = await supabaseClient
         .from('profiles')
         .select('full_name')
         .eq('id', user.id)
-        .single(); // .single() pega apenas um resultado, não uma lista
+        .single(); 
 
     if (error) {
         console.error("Erro ao buscar perfil:", error);
     }
-    
-    // NOVO: Usa o nome do usuário (user.user_metadata.full_name). Se não existir, usa o email.
+
     const displayName = profile?.full_name || user.email;
     headerAuthSection.innerHTML = `<span>Olá, ${displayName}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
     document.getElementById('logout-button').addEventListener('click', logout);
     
-    // ... (O resto da função `entrarModoAdmin` continua igual)
     formWrapper.innerHTML = `
         <div id="form-container" style="margin-bottom: 2rem; background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
@@ -118,7 +114,7 @@ function entrarModoAdmin(user) {
             </form>
         </div>`;
     document.getElementById('add-project-form').addEventListener('submit', adicionarProjeto);
-    
+   
     carregarProjetos(true);
 }
 
@@ -129,8 +125,6 @@ function entrarModoPublico() {
     carregarProjetos(false);
 }
 
-// 5. Funções do Gerenciador de Projetos (CRUD)
-// ... (Nenhuma alteração necessária nas funções carregarProjetos, adicionarProjeto, atualizarCampo)
 async function carregarProjetos(isAdmin) {
     const projectListTbody = document.getElementById('project-list');
     projectListTbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Carregando projetos...</td></tr>';
