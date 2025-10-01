@@ -84,8 +84,19 @@ async function logout() {
 // 4. Lógica de Controle de Estado
 function entrarModoAdmin(user) {
     authContainer.classList.add('hidden');
-    // NOVO: Usa o nome do usuário (user.user_metadata.full_name). Se não existir, usa o email.
-    const displayName = user.user_metadata.full_name || user.email;
+    
+    const { data: profile, error } = await supabaseClient
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single(); // .single() pega apenas um resultado, não uma lista
+
+    if (error) {
+        console.error("Erro ao buscar perfil:", error);
+    }
+    
+    // 2. Usa o nome do perfil. Se não houver, usa o email como alternativa.
+    const displayName = profile?.full_name || user.email;
     headerAuthSection.innerHTML = `<span>Olá, ${displayName}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
     document.getElementById('logout-button').addEventListener('click', logout);
     
