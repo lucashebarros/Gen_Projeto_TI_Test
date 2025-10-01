@@ -80,14 +80,24 @@ async function carregarProjetos(isAdmin) {
     projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Carregando projetos...</td></tr>`;
     const { data: projetos, error } = await supabaseClient.from('projetos').select('*').order('created_at', { ascending: false });
     if (error) { projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; color: red;">Erro ao carregar projetos.</td></tr>`; return; }
-    if (projetos.length === 0) { projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Nenhum projeto encontrado.</td></tr>`; return; }
+    if (projetos.length === 0) { projectListTbody.innerHTML = `<tr><td colspan="${colspan}";">Nenhum projeto encontrado.</td></tr>`; return; }
     
     projectListTbody.innerHTML = '';
     projetos.forEach(p => {
         const tr = document.createElement('tr');
         if (isAdmin) {
             tr.dataset.projectId = p.id;
-            tr.innerHTML = `<td>${p.nome}</td><td><input type="text" value="${p.chamado||''}" onblur="atualizarCampo(${p.id}, 'chamado', this.value)" style="width:100px;"/></td><td><input type="text" value="${p.responsavel||''}" onblur="atualizarCampo(${p.id}, 'responsavel', this.value)" style="width:120px;"/></td><td><textarea onblur="atualizarCampo(${p.id}, 'situacao', this.value)">${p.situacao||''}</textarea></td><td><input type="date" value="${p.prazo||''}" onblur="atualizarCampo(${p.id}, 'prazo', this.value)" /></td><td><select onchange="atualizarCampo(${p.id}, 'prioridade', this.value)"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td><td><input type="text" value="${p.priorizado||''}" onblur="atualizarCampo(${p.id}, 'priorizado', this.value)" style="width:120px;"/></td><td><button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">Excluir</button></td>`;
+// CÓDIGO NOVO (COM LARGURAS FLUIDAS)
+tr.innerHTML = `
+    <td>${p.nome}</td>
+    <td><input type="text" value="${p.chamado||''}" onblur="atualizarCampo(${p.id}, 'chamado', this.value)"/></td>
+    <td><input type="text" value="${p.responsavel||''}" onblur="atualizarCampo(${p.id}, 'responsavel', this.value)"/></td>
+    <td><textarea onblur="atualizarCampo(${p.id}, 'situacao', this.value)">${p.situacao||''}</textarea></td>
+    <td><input type="date" value="${p.prazo||''}" onblur="atualizarCampo(${p.id}, 'prazo', this.value)" /></td>
+    <td><select onchange="atualizarCampo(${p.id}, 'prioridade', this.value)"><option ...></select></td>
+    <td><input type="text" value="${p.priorizado||''}" onblur="atualizarCampo(${p.id}, 'priorizado', this.value)"/></td>
+    <td><button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">Excluir</button></td>
+`;
         } else {
             tr.innerHTML = `<td>${p.nome||''}</td><td>${p.chamado||''}</td><td>${p.responsavel||''}</td><td>${p.situacao||''}</td><td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td><td>${p.prioridade||''}</td><td>${p.priorizado||''}</td>`;
         }
