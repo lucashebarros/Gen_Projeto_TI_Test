@@ -56,7 +56,6 @@ async function entrarModoAdmin(user) {
             <thead>
                 <tr>
                     <th>Projeto</th><th>Nº Chamado</th><th>Responsável</th><th>Situação Atual</th><th>Prazo</th><th>Prioridade</th><th>Priorizado Por</th>
-                    <th>Ações</th> </tr>
             </thead>
             <tbody id="project-list"></tbody>
         </table>`;
