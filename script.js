@@ -90,6 +90,7 @@ function entrarModoPublico() {
 
 // 5. Funções do Gerenciador de Projetos (CRUD)
 async function carregarProjetos(isAdmin) {
+    const colspan = isAdmin ? 8 : 7; // NOVO: Ajusta o colspan
     const projectListTbody = document.getElementById('project-list');
     projectListTbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Carregando projetos...</td></tr>';
     const { data: projetos, error } = await supabaseClient.from('projetos').select('*').order('created_at', { ascending: false });
@@ -121,7 +122,31 @@ async function atualizarCampo(id, coluna, valor) {
     const { error } = await supabaseClient.from('projetos').update({ [coluna]: valor }).eq('id', id);
     if (error) console.error(error); else { const tr = document.querySelector(`tr[data-project-id='${id}']`); if (tr) { tr.style.backgroundColor = '#d4edda'; setTimeout(() => { tr.style.backgroundColor = ''; }, 1500); } }
 }
+
+// NOVO: Função para deletar um projeto
+async function deletarProjeto(id, nome) {
+    // Pede confirmação para evitar exclusões acidentais
+    const confirmacao = confirm(`Tem certeza que deseja excluir o projeto "${nome}"? Esta ação não pode ser desfeita.`);
+
+    if (confirmacao) {
+        const { error } = await supabaseClient
+            .from('projetos')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Erro ao deletar projeto:', error);
+            alert('Falha ao excluir o projeto.');
+        } else {
+            console.log(`Projeto "${nome}" excluído com sucesso.`);
+            carregarProjetos(true); // Recarrega a lista para mostrar o resultado
+        }
+    }
+}
+
+
 window.atualizarCampo = atualizarCampo;
+window.deletarProjeto = deletarProjeto; 
 
 // 6. PONTO DE PARTIDA DA APLICAÇÃO
 document.addEventListener('DOMContentLoaded', () => {
