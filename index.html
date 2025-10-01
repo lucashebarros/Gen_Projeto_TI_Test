@@ -1,4 +1,86 @@
-<body>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Projetos</title>
+    <link rel="icon" href="icon.png">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        header {
+            background-color: #57F572;
+            color: rgb(0,0,0);
+            padding: 1rem;
+            font-weight: bold;
+            text-align: center;
+            font-size: 1.5rem;
+        }
+        header img {
+            position: absolute;
+            top: 0.5rem;
+            left: 1rem;
+            height: 50px;
+        }
+        main {
+            padding: 2rem;
+            max-width: 1000px;
+            margin: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: separate; /* ALTERADO */
+            border-spacing: 0 8px;   /* ADICIONADO */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            background-color: white;
+        }
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            vertical-align: top; /* Melhora o alinhamento vertical */
+        }
+        th {
+            background-color: #57F572;
+            color: rgb(0,0,0);
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        /* Estilos para os campos editáveis */
+        td textarea, td input, td select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box; /* Garante que o padding não quebre o layout */
+        }
+        td textarea {
+            min-height: 80px; /* Altura mínima para o campo de situação */
+            resize: vertical;
+        }
+        footer {
+            text-align: center;
+            padding: 1rem;
+            background-color: #4CAF50;
+            color: white;
+            margin-top: 2rem;
+        }
+
+        /* Adicione estas regras ao seu CSS dentro da tag <style> */
+#auth-container {
+    display: none; /* Começa escondido por padrão */
+}
+
+#auth-container:not(.hidden) {
+    display: flex; /* Mostra como flexbox APENAS se NÃO tiver a classe .hidden */
+}
+    </style>
+</head><body>
     <header>
         <img src="logo.png" alt="Logo da Empresa">
         Gerenciador de Projetos de BI
@@ -21,13 +103,22 @@
                 </div>
                 <button type="submit" style="width: 100%; background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;">Entrar</button>
             </form>
-            </div>
+            <p id="auth-toggle" style="text-align: center; margin-top: 1rem; cursor: pointer; color: #555;"></p>
+        </div>
     </div>
 
     <main id="app-container">
-        <div id="form-wrapper"></div>
-        
-        <div id="table-wrapper"></div>
+        <div id="form-wrapper">
+            </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Projeto</th><th>Nº Chamado</th><th>Responsável</th><th>Situação Atual</th><th>Prazo</th><th>Prioridade</th><th>Priorizado Por</th>
+                </tr>
+            </thead>
+            <tbody id="project-list">
+                </tbody>
+        </table>
     </main>
     
     <footer>
@@ -37,3 +128,4 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="script.js"></script>
 </body>
+</html>
