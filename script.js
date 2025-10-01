@@ -43,7 +43,7 @@ async function entrarModoAdmin(user) {
     formWrapper.innerHTML = `
         <div id="form-container" style="margin-bottom: 2rem; background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
-            <form id="add-project-form" style="display: flex; flex-wrap: wrap; row-gap: 1.2rem; column-gap: 1rem;">
+            <form id="add-project-form" style="display: flex; flex-wrap: wrap; gap: 1rem;">
                 <div style="flex: 2 1 60%;"><label for="form-nome">Nome do Projeto:</label><input type="text" id="form-nome" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
                 <div style="flex: 1 1 30%;"><label for="form-chamado">Nº do Chamado:</label><input type="text" id="form-chamado" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
                 <div style="flex: 1 1 100%;"><label for="form-situacao">Situação Atual:</label><textarea id="form-situacao" style="width: 100%; min-height: 60px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></textarea></div>
@@ -51,17 +51,16 @@ async function entrarModoAdmin(user) {
                 <div style="flex: 1 1 30%;"><label for="form-responsavel">Responsável:</label><input type="text" id="form-responsavel" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
                 <div style="flex: 1 1 30%;"><label for="form-prioridade">Prioridade:</label><select id="form-prioridade" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"><option value="Alta">Alta</option><option value="Média" selected>Média</option><option value="Baixa">Baixa</option></select></div>
                 <div style="flex: 1 1 100%;"><label for="form-priorizado">Priorizado Por:</label><input type="text" id="form-priorizado" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
-                <div style="flex: 1 1 100%;"><button type="submit" style="background-color: #4CAF5O; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;">Salvar Novo Projeto</button></div>
+                <div style="flex: 1 1 100%;"><button type="submit" style="background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;">Salvar Novo Projeto</button></div>
             </form>
         </div>`;
     document.getElementById('add-project-form').addEventListener('submit', adicionarProjeto);
     
-    // Mostra a coluna de Ações
+    // CORREÇÃO: Mostra a coluna de Ações
     if (actionsHeader) actionsHeader.style.display = 'table-cell';
     
     carregarProjetos(true);
 }
-
 
 function entrarModoPublico() {
     headerAuthSection.innerHTML = `<button id="login-button">Admin / Login</button>`;
