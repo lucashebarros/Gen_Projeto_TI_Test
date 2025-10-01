@@ -12,6 +12,8 @@ const authContainer = document.getElementById('auth-container');
 const authForm = document.getElementById('auth-form');
 const headerAuthSection = document.getElementById('header-auth-section');
 const formWrapper = document.getElementById('form-wrapper');
+// NOVO: Seleciona o cabeçalho da coluna de ações
+const actionsHeader = document.getElementById('actions-header');
 
 // 3. Funções e Lógica de Autenticação
 function setupAuthListeners() {
@@ -32,12 +34,12 @@ async function logout() { await supabaseClient.auth.signOut(); }
 // 4. Lógica de Controle de Estado (Admin vs. Público)
 async function entrarModoAdmin(user) {
     authContainer.classList.add('hidden');
-    const { data: profile, error } = await supabaseClient.from('profiles').select('full_name').eq('id', user.id).single();
-    if (error) { console.error("Erro ao buscar perfil:", error.message); }
+    const { data: profile } = await supabaseClient.from('profiles').select('full_name').eq('id', user.id).single();
     const displayName = profile?.full_name || user.email;
     headerAuthSection.innerHTML = `<span>Olá, ${displayName}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
     document.getElementById('logout-button').addEventListener('click', logout);
     
+    // CORREÇÃO: Apenas mostra o formulário, não recria a tabela
     formWrapper.innerHTML = `
         <div id="form-container" style="margin-bottom: 2rem; background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
@@ -51,15 +53,12 @@ async function entrarModoAdmin(user) {
                 <div style="flex: 1 1 100%;"><label for="form-priorizado">Priorizado Por:</label><input type="text" id="form-priorizado" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
                 <div style="flex: 1 1 100%;"><button type="submit" style="background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;">Salvar Novo Projeto</button></div>
             </form>
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Projeto</th><th>Nº Chamado</th><th>Responsável</th><th>Situação Atual</th><th>Prazo</th><th>Prioridade</th><th>Priorizado Por</th>
-            </thead>
-            <tbody id="project-list"></tbody>
-        </table>`;
+        </div>`;
     document.getElementById('add-project-form').addEventListener('submit', adicionarProjeto);
+    
+    // CORREÇÃO: Mostra a coluna de Ações
+    if (actionsHeader) actionsHeader.style.display = 'table-cell';
+    
     carregarProjetos(true);
 }
 
@@ -67,32 +66,28 @@ function entrarModoPublico() {
     headerAuthSection.innerHTML = `<button id="login-button">Admin / Login</button>`;
     document.getElementById('login-button').addEventListener('click', () => authContainer.classList.remove('hidden'));
     formWrapper.innerHTML = '';
+    
+    // CORREÇÃO: Esconde a coluna de Ações
+    if (actionsHeader) actionsHeader.style.display = 'none';
+
     carregarProjetos(false);
 }
 
 // 5. Funções do Gerenciador de Projetos (CRUD)
 async function carregarProjetos(isAdmin) {
-    const colspan = isAdmin ? 8 : 7; // NOVO: Ajusta o colspan
+    const colspan = isAdmin ? 8 : 7;
     const projectListTbody = document.getElementById('project-list');
     projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Carregando projetos...</td></tr>`;
     const { data: projetos, error } = await supabaseClient.from('projetos').select('*').order('created_at', { ascending: false });
     if (error) { projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; color: red;">Erro ao carregar projetos.</td></tr>`; return; }
     if (projetos.length === 0) { projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Nenhum projeto encontrado.</td></tr>`; return; }
+    
     projectListTbody.innerHTML = '';
     projetos.forEach(p => {
         const tr = document.createElement('tr');
         if (isAdmin) {
             tr.dataset.projectId = p.id;
-            tr.innerHTML = `
-                <td>${p.nome}</td>
-                <td><input type="text" value="${p.chamado||''}" onblur="atualizarCampo(${p.id}, 'chamado', this.value)" style="width:100px;"/></td>
-                <td><input type="text" value="${p.responsavel||''}" onblur="atualizarCampo(${p.id}, 'responsavel', this.value)" style="width:120px;"/></td>
-                <td><textarea onblur="atualizarCampo(${p.id}, 'situacao', this.value)">${p.situacao||''}</textarea></td>
-                <td><input type="date" value="${p.prazo||''}" onblur="atualizarCampo(${p.id}, 'prazo', this.value)" /></td>
-                <td><select onchange="atualizarCampo(${p.id}, 'prioridade', this.value)"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
-                <td><input type="text" value="${p.priorizado||''}" onblur="atualizarCampo(${p.id}, 'priorizado', this.value)" style="width:120px;"/></td>
-                <td><button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">Excluir</button></td>
-            `;
+            tr.innerHTML = `<td>${p.nome}</td><td><input type="text" value="${p.chamado||''}" onblur="atualizarCampo(${p.id}, 'chamado', this.value)" style="width:100px;"/></td><td><input type="text" value="${p.responsavel||''}" onblur="atualizarCampo(${p.id}, 'responsavel', this.value)" style="width:120px;"/></td><td><textarea onblur="atualizarCampo(${p.id}, 'situacao', this.value)">${p.situacao||''}</textarea></td><td><input type="date" value="${p.prazo||''}" onblur="atualizarCampo(${p.id}, 'prazo', this.value)" /></td><td><select onchange="atualizarCampo(${p.id}, 'prioridade', this.value)"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td><td><input type="text" value="${p.priorizado||''}" onblur="atualizarCampo(${p.id}, 'priorizado', this.value)" style="width:120px;"/></td><td><button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">Excluir</button></td>`;
         } else {
             tr.innerHTML = `<td>${p.nome||''}</td><td>${p.chamado||''}</td><td>${p.responsavel||''}</td><td>${p.situacao||''}</td><td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td><td>${p.prioridade||''}</td><td>${p.priorizado||''}</td>`;
         }
@@ -113,31 +108,16 @@ async function atualizarCampo(id, coluna, valor) {
     const { error } = await supabaseClient.from('projetos').update({ [coluna]: valor }).eq('id', id);
     if (error) console.error(error); else { const tr = document.querySelector(`tr[data-project-id='${id}']`); if (tr) { tr.style.backgroundColor = '#d4edda'; setTimeout(() => { tr.style.backgroundColor = ''; }, 1500); } }
 }
-
-// NOVO: Função para deletar um projeto
 async function deletarProjeto(id, nome) {
-    // Pede confirmação para evitar exclusões acidentais
     const confirmacao = confirm(`Tem certeza que deseja excluir o projeto "${nome}"? Esta ação não pode ser desfeita.`);
-
     if (confirmacao) {
-        const { error } = await supabaseClient
-            .from('projetos')
-            .delete()
-            .eq('id', id);
-
-        if (error) {
-            console.error('Erro ao deletar projeto:', error);
-            alert('Falha ao excluir o projeto.');
-        } else {
-            console.log(`Projeto "${nome}" excluído com sucesso.`);
-            carregarProjetos(true); // Recarrega a lista para mostrar o resultado
-        }
+        const { error } = await supabaseClient.from('projetos').delete().eq('id', id);
+        if (error) { console.error('Erro ao deletar projeto:', error); alert('Falha ao excluir o projeto.'); }
+        else { carregarProjetos(true); }
     }
 }
-
-// Torna as funções acessíveis para o HTML (onblur, onchange, onclick)
 window.atualizarCampo = atualizarCampo;
-window.deletarProjeto = deletarProjeto; // NOVO
+window.deletarProjeto = deletarProjeto;
 
 // 6. PONTO DE PARTIDA DA APLICAÇÃO
 document.addEventListener('DOMContentLoaded', () => {
