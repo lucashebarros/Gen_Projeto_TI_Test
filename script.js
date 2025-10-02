@@ -93,8 +93,9 @@ async function carregarProjetos(isAdmin) {
             // VERSÃO CORRIGIDA SEM LARGURAS FIXAS
             tr.innerHTML = `
                 <td>${p.nome}</td>
-                <td><input type="text" value="${p.chamado||''}" onblur="atualizarCampo(${p.id}, 'chamado', this.value)"/></td>
                 <td><input type="text" value="${p.responsavel||''}" onblur="atualizarCampo(${p.id}, 'responsavel', this.value)"/></td>
+                <td><input type="text" value="${p.chamado||''}" onblur="atualizarCampo(${p.id}, 'chamado', this.value)"/></td>
+                <td><input type="text" value="${p.solicitante||''}" onblur="atualizarCampo(${p.id}, 'solicitante', this.value)"/></td>
                 <td><textarea onblur="atualizarCampo(${p.id}, 'situacao', this.value)">${p.situacao||''}</textarea></td>
                 <td><input type="date" value="${p.prazo||''}" onblur="atualizarCampo(${p.id}, 'prazo', this.value)" /></td>
                 <td><select onchange="atualizarCampo(${p.id}, 'prioridade', this.value)"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
