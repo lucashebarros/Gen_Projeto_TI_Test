@@ -73,7 +73,9 @@
         }
         
 #table-wrapper {
-    overflow-x: auto; /* Adiciona uma barra de rolagem APENAS na tabela se ela for muito grande */
+    overflow-x: auto; /* Mantém a barra de rolagem de segurança */
+    display: flex; /* Adicionado: Transforma o contêiner em um flex container */
+    justify-content: center; /* Adicionado: Centraliza o item filho (a tabela) horizontalmente */
 }
 
         /* Adicione estas regras ao seu CSS dentro da tag <style> */
@@ -134,6 +136,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
