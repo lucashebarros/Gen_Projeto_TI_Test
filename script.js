@@ -47,8 +47,8 @@ async function entrarModoAdmin(user) {
             <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
             <form id="add-project-form" style="display: flex; flex-wrap: wrap; row-gap: 1.2rem; column-gap: 2rem;">
                 <div style="flex: 2 1 60%;"><label for="form-nome">Nome do Projeto:</label><input type="text" id="form-nome" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
-                <div style="flex: 1 1 30%;"><label for="form-chamado">Nº do Chamado:</label><input type="text" id="form-chamado" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
                 <div style="flex: 1 1 30%;"><label for="form-responsavel">Responsável:</label><select id="form-responsavel" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"><option value="BI">BI</option><option value="Sistema">Sistema</option></select></div>
+                <div style="flex: 1 1 30%;"><label for="form-chamado">Nº do Chamado:</label><input type="text" id="form-chamado" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
                 <div style="flex: 1 1 30%;"><label for="form-solicitante">Solicitante:</label><input type="text" id="form-solicitante" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
                 <div style="flex: 1 1 100%;"><label for="form-situacao">Situação Atual:</label><textarea id="form-situacao" style="width: 100%; min-height: 60px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></textarea></div>
                 <div style="flex: 1 1 30%;"><label for="form-prazo">Prazo:</label><input type="date" id="form-prazo" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
@@ -97,8 +97,8 @@ async function carregarProjetos(isAdmin) {
             // REINTEGRADO: Campo 'solicitante' na tabela
             tr.innerHTML = `
                 <td>${p.nome}</td>
-                <td><input type="text" value="${p.chamado||''}" onblur="atualizarCampo(${p.id}, 'chamado', this.value)"/></td>
                 <td><select onchange="atualizarCampo(${p.id}, 'responsavel', this.value)"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option></select></td>
+                <td><input type="text" value="${p.chamado||''}" onblur="atualizarCampo(${p.id}, 'chamado', this.value)"/></td>
                 <td><input type="text" value="${p.solicitante||''}" onblur="atualizarCampo(${p.id}, 'solicitante', this.value)"/></td>
                 <td><textarea onblur="atualizarCampo(${p.id}, 'situacao', this.value)">${p.situacao||''}</textarea></td>
                 <td><input type="date" value="${p.prazo||''}" onblur="atualizarCampo(${p.id}, 'prazo', this.value)" /></td>
@@ -109,8 +109,8 @@ async function carregarProjetos(isAdmin) {
             // CORRIGIDO: Campo 'solicitante' na visão pública
             tr.innerHTML = `
                 <td>${p.nome||''}</td>
-                <td>${p.chamado||''}</td>
                 <td>${p.responsavel||''}</td>
+                <td>${p.chamado||''}</td>
                 <td>${p.solicitante||''}</td>
                 <td>${p.situacao||''}</td>
                 <td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td>
