@@ -98,10 +98,10 @@ async function carregarProjetos(isAdmin) {
             tr.innerHTML = `
                 <td>${p.nome}</td>
                 <td><select onchange="atualizarCampo(${p.id}, 'responsavel', this.value)"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option></select></td>
-                <td><input type="text" value="${p.chamado||''}" onblur="atualizarCampo(${p.id}, 'chamado', this.value)"/></td>
-                <td><input type="text" value="${p.solicitante||''}" onblur="atualizarCampo(${p.id}, 'solicitante', this.value)"/></td>
-                <td><textarea onblur="atualizarCampo(${p.id}, 'situacao', this.value)">${p.situacao||''}</textarea></td>
-                <td><input type="date" value="${p.prazo||''}" onblur="atualizarCampo(${p.id}, 'prazo', this.value)" /></td>
+                <td><input type="text" value="${p.chamado||''}" onkeydown="atualizarCampo(${p.id}, 'chamado', this.value)"/></td>
+                <td><input type="text" value="${p.solicitante||''}" onkeydown="atualizarCampo(${p.id}, 'solicitante', this.value)"/></td>
+                <td><textarea onkeydown="atualizarCampo(${p.id}, 'situacao', this.value)">${p.situacao||''}</textarea></td>
+                <td><input type="date" value="${p.prazo||''}" onkeydown="atualizarCampo(${p.id}, 'prazo', this.value)" /></td>
                 <td><select onchange="atualizarCampo(${p.id}, 'prioridade', this.value)"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
                 <td><input type="text" value="${p.priorizado||''}" onblur="atualizarCampo(${p.id}, 'priorizado', this.value)"/></td>
                 <td><button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">Excluir</button></td>`;
@@ -154,8 +154,28 @@ async function deletarProjeto(id, nome) {
         else { carregarProjetos(true); }
     }
 }
+
+// NOVO: Função que verifica se a tecla 'Enter' foi pressionada
+function handleEnterPress(event, id, coluna) {
+    // Verifica se a tecla pressionada foi 'Enter'
+    if (event.key === 'Enter') {
+        // Impede o comportamento padrão do Enter (como pular linha no textarea)
+        event.preventDefault();
+        
+        // Pega o valor do campo que disparou o evento
+        const valor = event.target.value;
+        
+        // Chama a função de atualização que já tínhamos
+        atualizarCampo(id, coluna, valor);
+
+        // Opcional: tira o foco do campo para dar um feedback visual de que foi salvo
+        event.target.blur();
+    }
+}
+
 window.atualizarCampo = atualizarCampo;
 window.deletarProjeto = deletarProjeto;
+window.handleEnterPress = handleEnterPress; // NOVO: Torna a nova função acessível para o HTML
 
 function setupFiltros() {
     const botoes = document.querySelectorAll('.filter-btn');
