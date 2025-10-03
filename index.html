@@ -83,6 +83,39 @@
 #auth-container:not(.hidden) {
     display: flex; /* Mostra como flexbox APENAS se NÃO tiver a classe .hidden */
 }
+
+/* ARQUIVO: index.html (Adicione estes estilos dentro da sua tag <style>) */
+
+.filter-container {
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap; /* Garante que funcione bem em telas menores */
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    border: 1px solid #ccc;
+    background-color: #f0f0f0;
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.filter-btn:hover {
+    background-color: #e0e0e0;
+    border-color: #aaa;
+}
+
+/* Estilo do botão ATIVO */
+.filter-btn.active {
+    background-color: #57F572; /* Mesma cor do cabeçalho */
+    color: black;
+    border-color: #4CAF50;
+    font-weight: bold;
+}
     </style>
 </head><body>
     <header>
@@ -150,6 +183,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
