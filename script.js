@@ -72,8 +72,9 @@ function entrarModoPublico() {
 }
 
 // 5. Funções do Gerenciador de Projetos (CRUD)
+// ARQUIVO: script.js (Substitua apenas esta função)
+
 async function carregarProjetos(isAdmin) {
-    // CORRIGIDO: Colspan ajustado para o número correto de colunas
     const colspan = isAdmin ? 10 : 9;
     const projectListTbody = document.getElementById('project-list');
     projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Carregando projetos...</td></tr>`;
@@ -94,19 +95,20 @@ async function carregarProjetos(isAdmin) {
         const tr = document.createElement('tr');
         if (isAdmin) {
             tr.dataset.projectId = p.id;
-            // REINTEGRADO: Campo 'solicitante' na tabela
+
+            // ===== A CORREÇÃO ESTÁ AQUI ABAIXO =====
+            // Trocamos a chamada direta para 'atualizarCampo' por 'handleEnterPress'
             tr.innerHTML = `
                 <td>${p.nome}</td>
+                <td><input type="text" value="${p.chamado||''}" onkeydown="handleEnterPress(event, ${p.id}, 'chamado')"/></td>
                 <td><select onchange="atualizarCampo(${p.id}, 'responsavel', this.value)"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option></select></td>
-                <td><input type="text" value="${p.chamado||''}" onkeydown="atualizarCampo(${p.id}, 'chamado', this.value)"/></td>
-                <td><input type="text" value="${p.solicitante||''}" onkeydown="atualizarCampo(${p.id}, 'solicitante', this.value)"/></td>
-                <td><textarea onkeydown="atualizarCampo(${p.id}, 'situacao', this.value)">${p.situacao||''}</textarea></td>
-                <td><input type="date" value="${p.prazo||''}" onkeydown="atualizarCampo(${p.id}, 'prazo', this.value)" /></td>
+                <td><input type="text" value="${p.solicitante||''}" onkeydown="handleEnterPress(event, ${p.id}, 'solicitante')"/></td>
+                <td><textarea onkeydown="handleEnterPress(event, ${p.id}, 'situacao')">${p.situacao||''}</textarea></td>
+                <td><input type="date" value="${p.prazo||''}" onkeydown="handleEnterPress(event, ${p.id}, 'prazo')" /></td>
                 <td><select onchange="atualizarCampo(${p.id}, 'prioridade', this.value)"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
-                <td><input type="text" value="${p.priorizado||''}" onblur="atualizarCampo(${p.id}, 'priorizado', this.value)"/></td>
+                <td><input type="text" value="${p.priorizado||''}" onkeydown="handleEnterPress(event, ${p.id}, 'priorizado')"/></td>
                 <td><button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">Excluir</button></td>`;
         } else {
-            // CORRIGIDO: Campo 'solicitante' na visão pública
             tr.innerHTML = `
                 <td>${p.nome||''}</td>
                 <td>${p.responsavel||''}</td>
