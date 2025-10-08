@@ -101,7 +101,7 @@ async function carregarProjetos(isAdmin) {
             tr.innerHTML = `
                 <td>${p.nome}</td>
                 <td><input type="text" value="${p.chamado||''}" onkeydown="handleEnterPress(event, ${p.id}, 'chamado')"/></td>
-                <td><select onchange="atualizarCampo(${p.id}, 'responsavel', this.value)"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option></select></td>
+                <td><select onchange="atualizarCampo(${p.id}, 'responsavel', this.value)"><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option></select></td>
                 <td><input type="text" value="${p.solicitante||''}" onkeydown="handleEnterPress(event, ${p.id}, 'solicitante')"/></td>
                 <td><textarea onkeydown="handleEnterPress(event, ${p.id}, 'situacao')">${p.situacao||''}</textarea></td>
                 <td><input type="date" value="${p.prazo||''}" onkeydown="handleEnterPress(event, ${p.id}, 'prazo')" /></td>
