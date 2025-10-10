@@ -100,7 +100,7 @@ async function carregarProjetos(isAdmin) {
             // Trocamos a chamada direta para 'atualizarCampo' por 'handleEnterPress'
             tr.innerHTML = `
                 <td>${p.nome}</td>
-                <td><select onchange="atualizarCampo(${p.id}, 'responsavel', this.value)"><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option></select></td>
+                <td><select onchange="atualizarCampo(${p.id}, 'responsavel', this.value)"><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option></option><option value="Infraestrutura" ${p.responsavel === 'Infraestrutura' ? 'selected' : ''}>Infraestrutura</option></option><option value="Suporte" ${p.responsavel === 'Suporte' ? 'selected' : ''}>Suporte</option></select></td>
                 <td><input type="text" value="${p.chamado||''}" onkeydown="handleEnterPress(event, ${p.id}, 'chamado')"/></td>
                 <td><input type="text" value="${p.solicitante||''}" onkeydown="handleEnterPress(event, ${p.id}, 'solicitante')"/></td>
                 <td><textarea onkeydown="handleEnterPress(event, ${p.id}, 'situacao')">${p.situacao||''}</textarea></td>
