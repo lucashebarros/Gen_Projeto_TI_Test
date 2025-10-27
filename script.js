@@ -118,7 +118,7 @@ async function carregarProjetos(isAdmin) {
                 <td><select data-column="prioridade"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
                 <td><input type="number" data-column="priority_index" value="${p.priority_index||'999'}" style="width: 60px; text-align: center;"/></td>
                 <td><input type="text" data-column="priorizado" value="${p.priorizado||''}"/></td>
-                <td> <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Salvar</button> <button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">Excluir</button>
+                <td> <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; margin-bottom: 5px;">Salvar</button> <button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">Excluir</button>
                 </td>`;
         } else {
             // Visão Pública (inclui solicitante e índice)
