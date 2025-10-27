@@ -192,15 +192,44 @@ function setupFiltros() {
     });
 }
 
+// ARQUIVO: script.js (Substitua apenas esta seção final)
+
+// Variável para rastrear o ID do usuário atualmente exibido na UI
+let currentUserId = null; 
+
 // 6. PONTO DE PARTIDA DA APLICAÇÃO
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     setupAuthListeners();
     setupFiltros();
+
+    const { data: { session: initialSession } } = await supabaseClient.auth.getSession();
+    currentUserId = initialSession?.user?.id ?? null; // Define o ID inicial
+    if (initialSession && initialSession.user) {
+        console.log('Initial load: User is logged in.');
+        entrarModoAdmin(initialSession.user);
+    } else {
+        console.log('Initial load: User is logged out.');
+        entrarModoPublico();
+    }
+
     supabaseClient.auth.onAuthStateChange((_event, session) => {
-        if (session && session.user) {
-            entrarModoAdmin(session.user);
+        const newUserId = session?.user?.id ?? null;
+
+        if (newUserId !== currentUserId) {
+            console.log('Auth state changed:', _event, ' New user ID:', newUserId);
+            currentUserId = newUserId; // Atualiza o ID rastreado
+
+            if (session && session.user) {
+                entrarModoAdmin(session.user);
+            } else {
+                entrarModoPublico();
+            }
         } else {
-            entrarModoPublico();
+            console.log('Auth state event ignored (user unchanged):', _event);
         }
     });
 });
+
+window.atualizarCampo = atualizarCampo;
+window.deletarProjeto = deletarProjeto;
+window.handleEnterPress = handleEnterPress;
