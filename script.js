@@ -93,8 +93,8 @@ async function carregarProjetos(isAdmin) {
         const priorityA = priorityOrder[a.prioridade || ''] || 99;
         const priorityB = priorityOrder[b.prioridade || ''] || 99;
         if (priorityA !== priorityB) return priorityA - priorityB;
-        const indexA = a.priority_index ?? 999; 
-        const indexB = b.priority_index ?? 999;
+        const indexA = a.priority_index ?? null; 
+        const indexB = b.priority_index ?? null;
         return indexA - indexB;
     });
 
@@ -115,7 +115,7 @@ async function carregarProjetos(isAdmin) {
                 <td><textarea data-column="situacao">${p.situacao||''}</textarea></td>
                 <td><input type="date" data-column="prazo" value="${p.prazo||''}" /></td>
                 <td><select data-column="prioridade"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
-                <td><input type="number" data-column="priority_index" value="${p.priority_index||'999'}" style="width: 60px; text-align: center;"/></td>
+                <td><input type="number" data-column="priority_index" value="${p.priority_index||'null'}" style="width: 60px; text-align: center;"/></td>
                 <td><input type="text" data-column="priorizado" value="${p.priorizado||''}"/></td>
                 <td> 
                     <div style="display: flex; flex-direction: column; gap: 5px; align-items: center;">
@@ -136,7 +136,7 @@ async function adicionarProjeto(event) {
     if (!user) return alert('Sessão expirada.');
     const form = event.target;
     // Salva o solicitante
-    const formData = {nome: form.querySelector('#form-nome').value, chamado: form.querySelector('#form-chamado').value, situacao: form.querySelector('#form-situacao').value, prazo: form.querySelector('#form-prazo').value || null, responsavel: form.querySelector('#form-responsavel').value, solicitante: form.querySelector('#form-solicitante').value, prioridade: form.querySelector('#form-prioridade').value, priorizado: form.querySelector('#form-priorizado').value, priority_index: 999, user_id: user.id};
+    const formData = {nome: form.querySelector('#form-nome').value, chamado: form.querySelector('#form-chamado').value, situacao: form.querySelector('#form-situacao').value, prazo: form.querySelector('#form-prazo').value || null, responsavel: form.querySelector('#form-responsavel').value, solicitante: form.querySelector('#form-solicitante').value, prioridade: form.querySelector('#form-prioridade').value, priorizado: form.querySelector('#form-priorizado').value, priority_index: null, user_id: user.id};
     if (!formData.nome) { alert('O nome do projeto é obrigatório.'); return; }
     const { error } = await supabaseClient.from('projetos').insert([formData]);
     if (error) { console.error(error); alert('Falha ao adicionar projeto.'); } else { form.reset(); carregarProjetos(true); }
@@ -157,7 +157,7 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
         let valor = field.value;
         if (coluna === 'priority_index') {
             valor = parseInt(valor, 10);
-            if (isNaN(valor)) valor = 999;
+            if (isNaN(valor)) valor = null;
         }
         if (field.type === 'date' && !valor) { valor = null; }
         updateData[coluna] = valor;
