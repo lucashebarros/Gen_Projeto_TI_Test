@@ -77,8 +77,6 @@ function entrarModoPublico() {
 
 const priorityOrder = { 'Alta': 1, 'Média': 2, 'Baixa': 3, '': 4 };
 
-// ARQUIVO: script.js (Substitua esta função)
-
 async function carregarProjetos(isAdmin) {
     const colspan = isAdmin ? 11 : 10;
     const projectListTbody = document.getElementById('project-list');
