@@ -10,7 +10,7 @@ const authContainer = document.getElementById('auth-container');
 const authForm = document.getElementById('auth-form');
 const headerAuthSection = document.getElementById('header-auth-section');
 const formWrapper = document.getElementById('form-wrapper');
-const actionsHeader = document.getElementById('actions-header');
+const actionsHeader = document.getElementById('actions-header'); // Mantém a referência ao cabeçalho
 let filtroAtual = 'Todos'; 
 let usuarioLogado = null;
 
@@ -39,6 +39,7 @@ async function entrarModoAdmin(user) {
     headerAuthSection.innerHTML = `<span>Olá, ${displayName}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
     document.getElementById('logout-button').addEventListener('click', logout);
     
+    // Formulário de Adição (mantém o solicitante e o espaçamento)
     formWrapper.innerHTML = `
         <div id="form-container" style="margin-bottom: 2rem; background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
@@ -55,7 +56,9 @@ async function entrarModoAdmin(user) {
             </form>
         </div>`;
     document.getElementById('add-project-form').addEventListener('submit', adicionarProjeto);
-    if (actionsHeader) actionsHeader.style.display = 'table-cell';
+    
+    // Mostra a coluna de Ações no cabeçalho
+    if (actionsHeader) actionsHeader.style.display = 'table-cell'; 
     carregarProjetos(true);
 }
 
@@ -64,7 +67,9 @@ function entrarModoPublico() {
     headerAuthSection.innerHTML = `<button id="login-button">Admin / Login</button>`;
     document.getElementById('login-button').addEventListener('click', () => authContainer.classList.remove('hidden'));
     formWrapper.innerHTML = '';
-    if (actionsHeader) actionsHeader.style.display = 'none';
+    
+    // Esconde a coluna de Ações no cabeçalho
+    if (actionsHeader) actionsHeader.style.display = 'none'; 
     carregarProjetos(false);
 }
 
@@ -73,7 +78,8 @@ function entrarModoPublico() {
 const priorityOrder = { 'Alta': 1, 'Média': 2, 'Baixa': 3, '': 4 };
 
 async function carregarProjetos(isAdmin) {
-    const colspan = isAdmin ? 11 : 10;
+    // CORRIGIDO: Colspan para o número correto de colunas (9 visíveis + 1 escondida no público = 10; 9 visíveis + 1 visível no admin = 11)
+    const colspan = isAdmin ? 11 : 10; 
     const projectListTbody = document.getElementById('project-list');
     projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Carregando projetos...</td></tr>`;
 
@@ -101,7 +107,7 @@ async function carregarProjetos(isAdmin) {
         tr.dataset.projectId = p.id; // Importante manter o ID na linha
 
         if (isAdmin) {
-            // ALTERADO: Removido 'onkeydown' dos inputs/textareas. Adicionado botão 'Salvar'.
+            // CORRIGIDO: Removido onkeydown, adicionado botão Salvar e data-column
             tr.innerHTML = `
                 <td>${p.nome}</td>
                 <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option></select></td>
@@ -112,91 +118,76 @@ async function carregarProjetos(isAdmin) {
                 <td><select data-column="prioridade"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
                 <td><input type="number" data-column="priority_index" value="${p.priority_index||'999'}" style="width: 60px; text-align: center;"/></td>
                 <td><input type="text" data-column="priorizado" value="${p.priorizado||''}"/></td>
-                <td>
-                    <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Salvar</button>
+                <td> <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Salvar</button>
                     <button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">Excluir</button>
                 </td>`;
         } else {
-            tr.innerHTML = `<td>${p.nome||''}</td><td>${p.responsavel||''}</td><td>${p.chamado||''}</td><td>${p.solicitante||''}</td><td>${p.situacao||''}</td><td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td><td>${p.prioridade||''}</td><td>${p.priority_index ?? ''}</td><td>${p.priorizado||''}</td>`;
+            // Visão Pública (inclui solicitante e índice)
+            tr.innerHTML = `
+                <td>${p.nome||''}</td>
+                <td>${p.responsavel||''}</td>
+                <td>${p.chamado||''}</td>
+                <td>${p.solicitante||''}</td>
+                <td>${p.situacao||''}</td>
+                <td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td>
+                <td>${p.prioridade||''}</td>
+                <td>${p.priority_index ?? ''}</td> 
+                <td>${p.priorizado||''}</td>
+                <td></td> `;
         }
         projectListTbody.appendChild(tr);
     });
 }
+
 async function adicionarProjeto(event) {
     event.preventDefault();
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert('Sessão expirada.');
     const form = event.target;
+    // Salva o solicitante
     const formData = {nome: form.querySelector('#form-nome').value, chamado: form.querySelector('#form-chamado').value, situacao: form.querySelector('#form-situacao').value, prazo: form.querySelector('#form-prazo').value || null, responsavel: form.querySelector('#form-responsavel').value, solicitante: form.querySelector('#form-solicitante').value, prioridade: form.querySelector('#form-prioridade').value, priorizado: form.querySelector('#form-priorizado').value, priority_index: 999, user_id: user.id};
     if (!formData.nome) { alert('O nome do projeto é obrigatório.'); return; }
     const { error } = await supabaseClient.from('projetos').insert([formData]);
     if (error) { console.error(error); alert('Falha ao adicionar projeto.'); } else { form.reset(); carregarProjetos(true); }
 }
 
-// REMOVIDO: A função 'atualizarCampo' não é mais necessária com o botão Salvar
-// async function atualizarCampo(id, coluna, valor) { ... } 
-
-// NOVO: Função para salvar TODAS as alterações de uma linha
+// CORRIGIDO: Função salvarAlteracoesProjeto (igual à versão anterior com o botão salvar)
 async function salvarAlteracoesProjeto(id, buttonElement) {
     const tr = document.querySelector(`tr[data-project-id='${id}']`);
     if (!tr) return;
 
-    // Desabilita o botão e mostra feedback
-    buttonElement.disabled = true;
-    buttonElement.textContent = 'Salvando...';
-    tr.style.opacity = '0.7'; // Feedback visual
+    buttonElement.disabled = true; buttonElement.textContent = 'Salvando...'; tr.style.opacity = '0.7'; 
 
     const updateData = {};
-    const fields = tr.querySelectorAll('[data-column]'); // Pega todos os campos com o atributo 'data-column'
+    const fields = tr.querySelectorAll('[data-column]'); 
 
     fields.forEach(field => {
         const coluna = field.getAttribute('data-column');
         let valor = field.value;
-
-        // Trata o caso do índice numérico
         if (coluna === 'priority_index') {
             valor = parseInt(valor, 10);
             if (isNaN(valor)) valor = 999;
         }
-        // Trata campos de data vazios
-        if (field.type === 'date' && !valor) {
-            valor = null;
-        }
-
+        if (field.type === 'date' && !valor) { valor = null; }
         updateData[coluna] = valor;
     });
 
-    console.log("Enviando atualização:", updateData);
+    const { error } = await supabaseClient.from('projetos').update(updateData).eq('id', id);
 
-    const { error } = await supabaseClient
-        .from('projetos')
-        .update(updateData)
-        .eq('id', id);
-
-    // Reabilita o botão e remove feedback
-    buttonElement.disabled = false;
-    buttonElement.textContent = 'Salvar';
-    tr.style.opacity = '1';
+    buttonElement.disabled = false; buttonElement.textContent = 'Salvar'; tr.style.opacity = '1';
 
     if (error) {
         console.error("Erro ao salvar alterações:", error);
-        alert(`Falha ao salvar as alterações do projeto. Verifique o console.`);
-        // Feedback visual de erro (opcional)
-        tr.style.outline = '2px solid red';
-        setTimeout(() => { tr.style.outline = ''; }, 2000);
+        alert(`Falha ao salvar as alterações do projeto.`);
+        tr.style.outline = '2px solid red'; setTimeout(() => { tr.style.outline = ''; }, 2000);
     } else {
-        console.log("Projeto atualizado com sucesso!");
-        // Feedback visual de sucesso
-        tr.style.outline = '2px solid lightgreen';
-        setTimeout(() => { tr.style.outline = ''; }, 1500);
-
-        // Se o índice foi alterado, recarrega para reordenar
-        if (updateData.hasOwnProperty('priority_index')) {
-            carregarProjetos(true);
+        tr.style.outline = '2px solid lightgreen'; setTimeout(() => { tr.style.outline = ''; }, 1500);
+        // Recarrega se o índice ou prioridade foram alterados para garantir a ordem
+        if (updateData.hasOwnProperty('priority_index') || updateData.hasOwnProperty('prioridade')) { 
+            carregarProjetos(true); 
         }
     }
 }
-
 
 async function deletarProjeto(id, nome) {
     if (confirm(`Tem certeza que deseja excluir o projeto "${nome}"?`)) {
@@ -206,14 +197,11 @@ async function deletarProjeto(id, nome) {
     }
 }
 
-// REMOVIDO: A função 'handleEnterPress' não é mais necessária
-// function handleEnterPress(event, id, coluna) { ... }
+// REMOVIDA a função handleEnterPress e atualizarCampo individual
 
-// REMOVIDO: Não precisamos mais expor 'atualizarCampo' ou 'handleEnterPress' globalmente
-// window.atualizarCampo = atualizarCampo;
-// window.handleEnterPress = handleEnterPress; 
+// Funções expostas globalmente
 window.deletarProjeto = deletarProjeto;
-window.salvarAlteracoesProjeto = salvarAlteracoesProjeto; // NOVO: Expõe a função de salvar
+window.salvarAlteracoesProjeto = salvarAlteracoesProjeto; 
 
 function setupFiltros() {
     const botoes = document.querySelectorAll('.filter-btn');
@@ -227,7 +215,6 @@ function setupFiltros() {
         });
     });
 }
-// ARQUIVO: script.js (Substitua apenas esta seção final)
 
 // Variável para rastrear o ID do usuário atualmente exibido na UI
 let currentUserId = null; 
