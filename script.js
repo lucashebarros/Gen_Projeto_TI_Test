@@ -109,8 +109,8 @@ async function carregarProjetos(isAdmin) {
             // ===== A ALTERAÇÃO ESTÁ NA ÚLTIMA CÉLULA (td) ABAIXO =====
             tr.innerHTML = `
                 <td>${p.nome}</td>
-                <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option></select></td>
                 <td><input type="text" data-column="chamado" value="${p.chamado||''}"/></td>
+                <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option></select></td>
                 <td><input type="text" data-column="solicitante" value="${p.solicitante||''}"/></td>
                 <td><textarea data-column="situacao">${p.situacao||''}</textarea></td>
                 <td><input type="date" data-column="prazo" value="${p.prazo||''}" /></td>
