@@ -77,9 +77,10 @@ function entrarModoPublico() {
 
 const priorityOrder = { 'Alta': 1, 'Média': 2, 'Baixa': 3, '': 4 };
 
+// ARQUIVO: script.js (Substitua esta função)
+
 async function carregarProjetos(isAdmin) {
-    // CORRIGIDO: Colspan para o número correto de colunas (9 visíveis + 1 escondida no público = 10; 9 visíveis + 1 visível no admin = 11)
-    const colspan = isAdmin ? 11 : 10; 
+    const colspan = isAdmin ? 11 : 10;
     const projectListTbody = document.getElementById('project-list');
     projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Carregando projetos...</td></tr>`;
 
@@ -104,10 +105,10 @@ async function carregarProjetos(isAdmin) {
     projectListTbody.innerHTML = '';
     projetos.forEach(p => {
         const tr = document.createElement('tr');
-        tr.dataset.projectId = p.id; // Importante manter o ID na linha
+        tr.dataset.projectId = p.id;
 
         if (isAdmin) {
-            // CORRIGIDO: Removido onkeydown, adicionado botão Salvar e data-column
+            // ===== A ALTERAÇÃO ESTÁ NA ÚLTIMA CÉLULA (td) ABAIXO =====
             tr.innerHTML = `
                 <td>${p.nome}</td>
                 <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option></select></td>
@@ -118,21 +119,14 @@ async function carregarProjetos(isAdmin) {
                 <td><select data-column="prioridade"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
                 <td><input type="number" data-column="priority_index" value="${p.priority_index||'999'}" style="width: 60px; text-align: center;"/></td>
                 <td><input type="text" data-column="priorizado" value="${p.priorizado||''}"/></td>
-                <td> <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; margin-top: 5px;">Salvar</button> <button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">Excluir</button>
+                <td> 
+                    <div style="display: flex; flex-direction: column; gap: 5px; align-items: center;">
+                        <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Salvar</button> 
+                        <button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Excluir</button>
+                    </div>
                 </td>`;
         } else {
-            // Visão Pública (inclui solicitante e índice)
-            tr.innerHTML = `
-                <td>${p.nome||''}</td>
-                <td>${p.responsavel||''}</td>
-                <td>${p.chamado||''}</td>
-                <td>${p.solicitante||''}</td>
-                <td>${p.situacao||''}</td>
-                <td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td>
-                <td>${p.prioridade||''}</td>
-                <td>${p.priority_index ?? ''}</td> 
-                <td>${p.priorizado||''}</td>
-                <td></td> `;
+            tr.innerHTML = `<td>${p.nome||''}</td><td>${p.responsavel||''}</td><td>${p.chamado||''}</td><td>${p.solicitante||''}</td><td>${p.situacao||''}</td><td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td><td>${p.prioridade||''}</td><td>${p.priority_index ?? ''}</td><td>${p.priorizado||''}</td><td></td>`;
         }
         projectListTbody.appendChild(tr);
     });
