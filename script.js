@@ -97,8 +97,8 @@ async function carregarProjetos(isAdmin) {
             return priorityA - priorityB; // Ordena por prioridade
         }
         // Se prioridades iguais, ordena pelo índice (trata null como 999)
-        const indexA = a.priority_index ?? 999; 
-        const indexB = b.priority_index ?? 999;
+        const indexA = a.priority_index ?? null; 
+        const indexB = b.priority_index ?? null;
         return indexA - indexB;
     });
 
@@ -118,7 +118,7 @@ async function carregarProjetos(isAdmin) {
                 <td><textarea onkeydown="handleEnterPress(event, ${p.id}, 'situacao')">${p.situacao||''}</textarea></td>
                 <td><input type="date" value="${p.prazo||''}" onkeydown="handleEnterPress(event, ${p.id}, 'prazo')" /></td>
                 <td><select onchange="atualizarCampo(${p.id}, 'prioridade', this.value)"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
-                <td><input type="number" value="${p.priority_index||'999'}" onkeydown="handleEnterPress(event, ${p.id}, 'priority_index')" style="width: 60px; text-align: center;"/></td>
+                <td><input type="number" value="${p.priority_index||null}" onkeydown="handleEnterPress(event, ${p.id}, 'priority_index')" style="width: 60px; text-align: center;"/></td>
                 <td><input type="text" value="${p.priorizado||''}" onkeydown="handleEnterPress(event, ${p.id}, 'priorizado')"/></td>
                 <td><button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">Excluir</button></td>`;
         } else {
@@ -153,7 +153,7 @@ async function adicionarProjeto(event) {
         solicitante: form.querySelector('#form-solicitante').value,
         prioridade: form.querySelector('#form-prioridade').value,
         priorizado: form.querySelector('#form-priorizado').value,
-        priority_index: 999, // Valor padrão para novos projetos
+        priority_index: null, // Valor padrão para novos projetos
         user_id: user.id
     };
 
