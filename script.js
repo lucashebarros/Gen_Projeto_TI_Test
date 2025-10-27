@@ -70,11 +70,10 @@ function entrarModoPublico() {
 
 // 5. Funções do Gerenciador de Projetos (CRUD)
 
-// NOVO: Helper para ordenação
 const priorityOrder = { 'Alta': 1, 'Média': 2, 'Baixa': 3, '': 4 };
 
 async function carregarProjetos(isAdmin) {
-    const colspan = isAdmin ? 11 : 10; // Aumentado para nova coluna + ações
+    const colspan = isAdmin ? 11 : 10;
     const projectListTbody = document.getElementById('project-list');
     projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Carregando projetos...</td></tr>`;
 
@@ -82,23 +81,15 @@ async function carregarProjetos(isAdmin) {
     if (filtroAtual !== 'Todos') {
         query = query.eq('responsavel', filtroAtual);
     }
-    // REMOVIDO: a ordenação será feita no JavaScript agora
-    // query = query.order('created_at', { ascending: false }); 
-
     const { data: projetosData, error } = await query;
-    
     if (error) { projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; color: red;">Erro ao carregar projetos.</td></tr>`; return; }
     
-    // NOVO: Ordena os projetos aqui no JavaScript
     const projetos = projetosData.sort((a, b) => {
         const priorityA = priorityOrder[a.prioridade || ''] || 99;
         const priorityB = priorityOrder[b.prioridade || ''] || 99;
-        if (priorityA !== priorityB) {
-            return priorityA - priorityB; // Ordena por prioridade
-        }
-        // Se prioridades iguais, ordena pelo índice (trata null como 999)
-        const indexA = a.priority_index ?? null; 
-        const indexB = b.priority_index ?? null;
+        if (priorityA !== priorityB) return priorityA - priorityB;
+        const indexA = a.priority_index ?? 999; 
+        const indexB = b.priority_index ?? 999;
         return indexA - indexB;
     });
 
@@ -107,32 +98,26 @@ async function carregarProjetos(isAdmin) {
     projectListTbody.innerHTML = '';
     projetos.forEach(p => {
         const tr = document.createElement('tr');
+        tr.dataset.projectId = p.id; // Importante manter o ID na linha
+
         if (isAdmin) {
-            tr.dataset.projectId = p.id;
-            // NOVO: Adicionada a coluna de Índice editável
+            // ALTERADO: Removido 'onkeydown' dos inputs/textareas. Adicionado botão 'Salvar'.
             tr.innerHTML = `
                 <td>${p.nome}</td>
-                <td><select onchange="atualizarCampo(${p.id}, 'responsavel', this.value)"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option></select></td>
-                <td><input type="text" value="${p.chamado||''}" onkeydown="handleEnterPress(event, ${p.id}, 'chamado')"/></td>
-                <td><input type="text" value="${p.solicitante||''}" onkeydown="handleEnterPress(event, ${p.id}, 'solicitante')"/></td>
-                <td><textarea onkeydown="handleEnterPress(event, ${p.id}, 'situacao')">${p.situacao||''}</textarea></td>
-                <td><input type="date" value="${p.prazo||''}" onkeydown="handleEnterPress(event, ${p.id}, 'prazo')" /></td>
-                <td><select onchange="atualizarCampo(${p.id}, 'prioridade', this.value)"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
-                <td><input type="number" value="${p.priority_index||null}" onkeydown="handleEnterPress(event, ${p.id}, 'priority_index')" style="width: 60px; text-align: center;"/></td>
-                <td><input type="text" value="${p.priorizado||''}" onkeydown="handleEnterPress(event, ${p.id}, 'priorizado')"/></td>
-                <td><button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">Excluir</button></td>`;
+                <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option></select></td>
+                <td><input type="text" data-column="chamado" value="${p.chamado||''}"/></td>
+                <td><input type="text" data-column="solicitante" value="${p.solicitante||''}"/></td>
+                <td><textarea data-column="situacao">${p.situacao||''}</textarea></td>
+                <td><input type="date" data-column="prazo" value="${p.prazo||''}" /></td>
+                <td><select data-column="prioridade"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
+                <td><input type="number" data-column="priority_index" value="${p.priority_index||'999'}" style="width: 60px; text-align: center;"/></td>
+                <td><input type="text" data-column="priorizado" value="${p.priorizado||''}"/></td>
+                <td>
+                    <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Salvar</button>
+                    <button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer;">Excluir</button>
+                </td>`;
         } else {
-             // NOVO: Adicionada a coluna de Índice na visão pública
-            tr.innerHTML = `
-                <td>${p.nome||''}</td>
-                <td>${p.responsavel||''}</td>
-                <td>${p.chamado||''}</td>
-                <td>${p.solicitante||''}</td>
-                <td>${p.situacao||''}</td>
-                <td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td>
-                <td>${p.prioridade||''}</td>
-                <td>${p.priority_index ?? ''}</td> 
-                <td>${p.priorizado||''}</td>`;
+            tr.innerHTML = `<td>${p.nome||''}</td><td>${p.responsavel||''}</td><td>${p.chamado||''}</td><td>${p.solicitante||''}</td><td>${p.situacao||''}</td><td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td><td>${p.prioridade||''}</td><td>${p.priority_index ?? ''}</td><td>${p.priorizado||''}</td>`;
         }
         projectListTbody.appendChild(tr);
     });
@@ -141,46 +126,78 @@ async function adicionarProjeto(event) {
     event.preventDefault();
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert('Sessão expirada.');
-    
     const form = event.target;
-    // NOVO: Adiciona 'priority_index' com valor padrão ao salvar
-    const formData = {
-        nome: form.querySelector('#form-nome').value,
-        chamado: form.querySelector('#form-chamado').value,
-        situacao: form.querySelector('#form-situacao').value,
-        prazo: form.querySelector('#form-prazo').value || null,
-        responsavel: form.querySelector('#form-responsavel').value,
-        solicitante: form.querySelector('#form-solicitante').value,
-        prioridade: form.querySelector('#form-prioridade').value,
-        priorizado: form.querySelector('#form-priorizado').value,
-        priority_index: null, // Valor padrão para novos projetos
-        user_id: user.id
-    };
-
+    const formData = {nome: form.querySelector('#form-nome').value, chamado: form.querySelector('#form-chamado').value, situacao: form.querySelector('#form-situacao').value, prazo: form.querySelector('#form-prazo').value || null, responsavel: form.querySelector('#form-responsavel').value, solicitante: form.querySelector('#form-solicitante').value, prioridade: form.querySelector('#form-prioridade').value, priorizado: form.querySelector('#form-priorizado').value, priority_index: 999, user_id: user.id};
     if (!formData.nome) { alert('O nome do projeto é obrigatório.'); return; }
     const { error } = await supabaseClient.from('projetos').insert([formData]);
     if (error) { console.error(error); alert('Falha ao adicionar projeto.'); } else { form.reset(); carregarProjetos(true); }
 }
-async function atualizarCampo(id, coluna, valor) {
-    // NOVO: Converte o índice para número antes de salvar
-    let valorFinal = valor;
-    if (coluna === 'priority_index') {
-        valorFinal = parseInt(valor, 10);
-        // Evita salvar NaN (Not a Number) se o campo for apagado
-        if (isNaN(valorFinal)) valorFinal = 999; 
-    }
 
-    const { error } = await supabaseClient.from('projetos').update({ [coluna]: valorFinal }).eq('id', id);
-    if (error) console.error(error); else { 
-        // NOVO: Recarrega a lista após salvar o índice para garantir a ordem correta
+// REMOVIDO: A função 'atualizarCampo' não é mais necessária com o botão Salvar
+// async function atualizarCampo(id, coluna, valor) { ... } 
+
+// NOVO: Função para salvar TODAS as alterações de uma linha
+async function salvarAlteracoesProjeto(id, buttonElement) {
+    const tr = document.querySelector(`tr[data-project-id='${id}']`);
+    if (!tr) return;
+
+    // Desabilita o botão e mostra feedback
+    buttonElement.disabled = true;
+    buttonElement.textContent = 'Salvando...';
+    tr.style.opacity = '0.7'; // Feedback visual
+
+    const updateData = {};
+    const fields = tr.querySelectorAll('[data-column]'); // Pega todos os campos com o atributo 'data-column'
+
+    fields.forEach(field => {
+        const coluna = field.getAttribute('data-column');
+        let valor = field.value;
+
+        // Trata o caso do índice numérico
         if (coluna === 'priority_index') {
+            valor = parseInt(valor, 10);
+            if (isNaN(valor)) valor = 999;
+        }
+        // Trata campos de data vazios
+        if (field.type === 'date' && !valor) {
+            valor = null;
+        }
+
+        updateData[coluna] = valor;
+    });
+
+    console.log("Enviando atualização:", updateData);
+
+    const { error } = await supabaseClient
+        .from('projetos')
+        .update(updateData)
+        .eq('id', id);
+
+    // Reabilita o botão e remove feedback
+    buttonElement.disabled = false;
+    buttonElement.textContent = 'Salvar';
+    tr.style.opacity = '1';
+
+    if (error) {
+        console.error("Erro ao salvar alterações:", error);
+        alert(`Falha ao salvar as alterações do projeto. Verifique o console.`);
+        // Feedback visual de erro (opcional)
+        tr.style.outline = '2px solid red';
+        setTimeout(() => { tr.style.outline = ''; }, 2000);
+    } else {
+        console.log("Projeto atualizado com sucesso!");
+        // Feedback visual de sucesso
+        tr.style.outline = '2px solid lightgreen';
+        setTimeout(() => { tr.style.outline = ''; }, 1500);
+
+        // Se o índice foi alterado, recarrega para reordenar
+        if (updateData.hasOwnProperty('priority_index')) {
             carregarProjetos(true);
-        } else {
-             const tr = document.querySelector(`tr[data-project-id='${id}']`); 
-             if (tr) { tr.style.backgroundColor = '#d4edda'; setTimeout(() => { tr.style.backgroundColor = ''; }, 1500); } 
         }
     }
 }
+
+
 async function deletarProjeto(id, nome) {
     if (confirm(`Tem certeza que deseja excluir o projeto "${nome}"?`)) {
         const { error } = await supabaseClient.from('projetos').delete().eq('id', id);
@@ -188,17 +205,15 @@ async function deletarProjeto(id, nome) {
         else { carregarProjetos(true); }
     }
 }
-function handleEnterPress(event, id, coluna) {
-    if (event.key === 'Enter') {
-        event.preventDefault();
-        const valor = event.target.value;
-        atualizarCampo(id, coluna, valor);
-        event.target.blur();
-    }
-}
-window.atualizarCampo = atualizarCampo;
+
+// REMOVIDO: A função 'handleEnterPress' não é mais necessária
+// function handleEnterPress(event, id, coluna) { ... }
+
+// REMOVIDO: Não precisamos mais expor 'atualizarCampo' ou 'handleEnterPress' globalmente
+// window.atualizarCampo = atualizarCampo;
+// window.handleEnterPress = handleEnterPress; 
 window.deletarProjeto = deletarProjeto;
-window.handleEnterPress = handleEnterPress;
+window.salvarAlteracoesProjeto = salvarAlteracoesProjeto; // NOVO: Expõe a função de salvar
 
 function setupFiltros() {
     const botoes = document.querySelectorAll('.filter-btn');
