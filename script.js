@@ -24,8 +24,12 @@ function setupAuthListeners() {
         const button = authForm.querySelector('button');
         button.disabled = true; button.textContent = 'Aguarde...';
         const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-        if (error) alert(error.message);
-        button.disabled = false; button.textContent = 'Entrar';
+        if (error) {
+             alert(error.message);
+             // Re-enable button on error
+             button.disabled = false; button.textContent = 'Entrar';
+        }
+        // Button is re-enabled by onAuthStateChange triggering UI reload
     });
 }
 async function logout() { await supabaseClient.auth.signOut(); }
@@ -33,23 +37,27 @@ async function logout() { await supabaseClient.auth.signOut(); }
 // 4. Lógica de Controle de Estado (Admin vs. Público)
 async function entrarModoAdmin(user) {
     usuarioLogado = user;
-    authContainer.classList.add('hidden');
-    // Tratamento de erro na busca do perfil
+    authContainer.classList.add('hidden'); // Ensure login modal is hidden
+    // Add try-catch for profile fetching
     let displayName = user.email; // Default to email
     try {
-        const { data: profile, error } = await supabaseClient.from('profiles').select('full_name').eq('id', user.id).single();
-        if (error && error.code !== 'PGRST116') { // PGRST116 = row not found, which is ok
-           console.error("Erro ao buscar perfil:", error);
+        const { data: profile, error: profileError } = await supabaseClient.from('profiles').select('full_name').eq('id', user.id).single();
+        // Ignore 'Row not found' error (PGRST116), log others
+        if (profileError && profileError.code !== 'PGRST116') {
+           console.error("Erro ao buscar perfil:", profileError);
+        } else if (profile?.full_name) {
+            displayName = profile.full_name;
         }
-        displayName = profile?.full_name || user.email;
-    } catch (profileError) {
-         console.error("Exceção ao buscar perfil:", profileError);
+    } catch (e) {
+        console.error("Exceção ao buscar perfil:", e);
     }
 
     headerAuthSection.innerHTML = `<span>Olá, ${displayName}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
-    document.getElementById('logout-button').addEventListener('click', logout);
+    // Add listener only if button exists
+    const logoutButton = document.getElementById('logout-button');
+    if(logoutButton) logoutButton.addEventListener('click', logout);
 
-    // Formulário de Adição (mantém solicitante, prioridade e espaçamento)
+    // Formulário de Adição (com Prioridade)
     formWrapper.innerHTML = `
         <div id="form-container" style="margin-bottom: 2rem; background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
@@ -65,19 +73,22 @@ async function entrarModoAdmin(user) {
                 <div style="flex: 1 1 100%;"><button type="submit" style="background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;">Salvar Novo Projeto</button></div>
             </form>
         </div>`;
-    document.getElementById('add-project-form').addEventListener('submit', adicionarProjeto);
+    // Add listener only if form exists
+     const addForm = document.getElementById('add-project-form');
+     if(addForm) addForm.addEventListener('submit', adicionarProjeto);
 
     if (actionsHeader) actionsHeader.style.display = 'table-cell';
-    carregarProjetos(true);
+    carregarProjetos(true); // Load projects *after* setting up the UI
 }
 
 function entrarModoPublico() {
     usuarioLogado = null;
     headerAuthSection.innerHTML = `<button id="login-button">Admin / Login</button>`;
-    // Garante que o event listener só é adicionado uma vez
+    // Add listener only if button exists and ensure it's added only once
     const loginButton = document.getElementById('login-button');
-    if (loginButton) {
-        loginButton.onclick = () => authContainer.classList.remove('hidden'); // Usa onclick para simplicidade
+    if (loginButton && !loginButton.dataset.listenerAttached) {
+        loginButton.addEventListener('click', () => authContainer.classList.remove('hidden'));
+        loginButton.dataset.listenerAttached = 'true';
     }
     formWrapper.innerHTML = '';
     if (actionsHeader) actionsHeader.style.display = 'none';
@@ -86,7 +97,7 @@ function entrarModoPublico() {
 
 // 5. Funções do Gerenciador de Projetos (CRUD)
 
-// REMOVIDO: Helper priorityOrder não é mais necessário para ordenação JS
+// REMOVIDO: Helper priorityOrder não era usado na versão funcional para query
 // const priorityOrder = { 'Alta': 1, 'Média': 2, 'Baixa': 3, '': 4 };
 
 async function carregarProjetos(isAdmin) {
@@ -94,8 +105,8 @@ async function carregarProjetos(isAdmin) {
     const colspan = isAdmin ? 11 : 10;
     const projectListTbody = document.getElementById('project-list');
     if (!projectListTbody) {
-        console.error("Elemento tbody#project-list não encontrado!");
-        return; // Sai se a tabela não existe
+         console.error("Elemento tbody#project-list não encontrado!");
+         return;
     }
     projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Carregando projetos...</td></tr>`;
 
@@ -103,8 +114,8 @@ async function carregarProjetos(isAdmin) {
     if (filtroAtual !== 'Todos') {
         query = query.eq('responsavel', filtroAtual);
     }
-    // ===== ALTERAÇÃO PRINCIPAL: ORDENAÇÃO DIRETO NO BANCO =====
-    query = query.order('priority_index', { ascending: true, nullsFirst: false }); // Ordena SÓ pelo índice
+    // ===== ORDENAÇÃO CORRIGIDA =====
+    query = query.order('priority_index', { ascending: true, nullsFirst: false });
 
     const { data: projetos, error } = await query; // Use 'projetos' diretamente
 
@@ -114,7 +125,7 @@ async function carregarProjetos(isAdmin) {
         return;
     }
 
-    // REMOVIDA A ORDENAÇÃO JS:
+    // REMOVIDA A ORDENAÇÃO JS DA VERSÃO FUNCIONAL:
     // const projetos = projetosData.sort(...)
 
     if (!projetos || projetos.length === 0) {
@@ -128,7 +139,7 @@ async function carregarProjetos(isAdmin) {
         tr.dataset.projectId = p.id;
 
         if (isAdmin) {
-            // Mantém 'prioridade' e 'priority_index' como input number
+            // Mantém 'prioridade', 'priority_index' como input number, botão salvar
             tr.innerHTML = `
                 <td>${p.nome}</td>
                 <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option><option value="Infraestrutura" ${p.responsavel === 'Infraestrutura' ? 'selected' : ''}>Infraestrutura</option><option value="Suporte" ${p.responsavel === 'Suporte' ? 'selected' : ''}>Suporte</option></select></td>
@@ -146,7 +157,7 @@ async function carregarProjetos(isAdmin) {
                     </div>
                 </td>`;
         } else {
-             // Mantém 'prioridade' e 'priority_index'
+             // Visão Pública (mantém 'prioridade' e 'priority_index')
             tr.innerHTML = `
                 <td>${p.nome||''}</td>
                 <td>${p.responsavel||''}</td>
@@ -169,7 +180,7 @@ async function adicionarProjeto(event) {
     if (!user) return alert('Sessão expirada.');
 
     const form = event.target;
-    // Mantém 'prioridade', remove envio explícito de 'priority_index' (usará default 999 do DB)
+    // Mantém 'prioridade', não envia 'priority_index' (usa default DB)
     const formData = {
         nome: form.querySelector('#form-nome').value,
         chamado: form.querySelector('#form-chamado').value,
@@ -179,13 +190,13 @@ async function adicionarProjeto(event) {
         solicitante: form.querySelector('#form-solicitante').value,
         prioridade: form.querySelector('#form-prioridade').value, // Mantido
         priorizado: form.querySelector('#form-priorizado').value,
-        // priority_index: null, // Removido - Deixa o DB usar o default
         user_id: user.id
     };
 
     if (!formData.nome) { alert('O nome do projeto é obrigatório.'); return; }
     const { error } = await supabaseClient.from('projetos').insert([formData]);
-    if (error) { console.error(error); alert('Falha ao adicionar projeto.'); } else { form.reset(); carregarProjetos(true); }
+    if (error) { console.error("Erro ao adicionar projeto:", error); alert('Falha ao adicionar projeto.'); }
+    else { form.reset(); carregarProjetos(true); }
 }
 
 async function salvarAlteracoesProjeto(id, buttonElement) {
@@ -201,10 +212,10 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
         const coluna = field.getAttribute('data-column');
         let valor = field.value;
 
-        // Trata o índice numérico, usando 999 se inválido/vazio
+        // Trata índice, usa 999 se inválido ou vazio
         if (coluna === 'priority_index') {
             valor = parseInt(valor, 10);
-            if (isNaN(valor) || valor === null || valor === '') valor = 999; // Usa 999 se inválido ou vazio
+            if (isNaN(valor) || valor === null || valor === '') valor = 999;
         }
         if (field.type === 'date' && !valor) { valor = null; }
         updateData[coluna] = valor;
@@ -220,7 +231,7 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
         tr.style.outline = '2px solid red'; setTimeout(() => { tr.style.outline = ''; }, 2000);
     } else {
         tr.style.outline = '2px solid lightgreen'; setTimeout(() => { tr.style.outline = ''; }, 1500);
-        // Recarrega se o índice foi alterado (para reordenar a exibição)
+        // Recarrega se o índice foi alterado (para reordenar)
         if (updateData.hasOwnProperty('priority_index')) {
             carregarProjetos(true);
         }
@@ -242,8 +253,8 @@ window.salvarAlteracoesProjeto = salvarAlteracoesProjeto;
 function setupFiltros() {
     const botoes = document.querySelectorAll('.filter-btn');
     botoes.forEach(botao => {
-        // Garante que só adiciona o listener uma vez
-        if (!botao.dataset.listenerAttached) {
+        // Evita adicionar múltiplos listeners
+        if (botao.dataset.listenerAttached !== 'true') {
              botao.addEventListener('click', () => {
                 botoes.forEach(b => b.classList.remove('active'));
                 botao.classList.add('active');
@@ -262,35 +273,50 @@ let initialLoadComplete = false; // Flag para a lógica do onAuthStateChange
 
 // 6. PONTO DE PARTIDA DA APLICAÇÃO
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log("DOM Carregado. Configurando listeners e verificando sessão...");
     setupAuthListeners();
-    setupFiltros();
+    setupFiltros(); // Chama para configurar os filtros que já existem no HTML
 
+    // Listener para mudanças de estado de autenticação
     supabaseClient.auth.onAuthStateChange(async (_event, session) => {
-        console.log("Auth Event:", _event, "Session:", session); // Log para depuração
+        console.log("Auth Event:", _event, "Session:", session);
         const newUserId = session?.user?.id ?? null;
 
-        // Lógica para evitar recargas desnecessárias ao focar na aba
-        if ((_event === 'INITIAL_SESSION' || _event === 'SIGNED_IN') && newUserId === currentUserId && initialLoadComplete) {
-            console.log('Auth state event ignored (user already loaded or unchanged):', _event);
-             // Mesmo se ignorar, garante que os filtros sejam configurados se a UI foi recriada
-             if(document.querySelectorAll('.filter-btn').length > 0) setupFiltros();
-            return;
-        }
+        // Lógica aprimorada para evitar recargas desnecessárias
+        // Só recarrega se o usuário mudou OU se é a carga inicial e ainda não foi completada
+        if (newUserId !== currentUserId || !initialLoadComplete) {
+            console.log('Auth state change requires UI reload. Event:', _event);
+            currentUserId = newUserId; // Atualiza quem está logado
 
-        console.log('Auth state change detected, reloading UI. Event:', _event);
-        currentUserId = newUserId;
-
-        if (session && session.user) {
-            await entrarModoAdmin(session.user);
+            if (session && session.user) {
+                // É crucial esperar a UI ser montada antes de carregar dados
+                await entrarModoAdmin(session.user);
+            } else {
+                entrarModoPublico();
+            }
+             // Garante que os filtros sejam reconfigurados após a UI ser (re)desenhada
+             setupFiltros();
+            initialLoadComplete = true; // Marca que a primeira carga/mudança válida foi feita
         } else {
-            entrarModoPublico();
+            console.log('Auth state event ignored (user unchanged or initial load already handled):', _event);
         }
-        initialLoadComplete = true; // Marca que a carga inicial (ou mudança de usuário) foi concluída
-        // Garante que os filtros sejam configurados após a UI ser (re)criada
-         if(document.querySelectorAll('.filter-btn').length > 0) setupFiltros();
     });
+
+    // Verificação inicial explícita após configurar o listener
+    // Isso garante que a primeira renderização aconteça
+    try {
+        const { data: { session: initialSession } } = await supabaseClient.auth.getSession();
+        console.log("Sessão inicial verificada:", initialSession);
+        // A lógica dentro do onAuthStateChange ('INITIAL_SESSION') cuidará da renderização inicial
+    } catch (e) {
+        console.error("Erro ao obter sessão inicial:", e);
+        // Pode ser necessário chamar entrarModoPublico() aqui em caso de erro grave
+        entrarModoPublico(); // Garante uma renderização mesmo se getSession falhar
+        initialLoadComplete = true; // Marca como completo para evitar loop
+    }
+
 });
 
-// REMOVIDAS as referências globais que não existem mais
+// REMOVIDAS as referências globais que não estão definidas ou não são necessárias
 // window.atualizarCampo = atualizarCampo;
 // window.handleEnterPress = handleEnterPress;
