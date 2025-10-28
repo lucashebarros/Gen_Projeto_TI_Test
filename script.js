@@ -331,6 +331,8 @@ let currentUserId = null;
 let initialLoadComplete = false; // Flag para a lógica do onAuthStateChange
 
 // 6. PONTO DE PARTIDA DA APLICAÇÃO
+let initialLoadComplete = false; // Flag para a lógica do onAuthStateChange
+
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("DOM Carregado. Configurando listeners e verificando sessão...");
     setupAuthListeners();
@@ -344,58 +346,75 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Lógica aprimorada para evitar recargas desnecessárias
         if ((_event === 'INITIAL_SESSION' || _event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') && newUserId === currentUserId && initialLoadComplete) {
             console.log('Auth state event ignored (user unchanged or already loaded):', _event);
-            return; // Ignora se o usuário não mudou e a carga inicial já foi feita
+            // Mesmo se ignorar, garante que os filtros sejam reconfigurados se a UI foi recriada (caso raro)
+             if(document.querySelectorAll('.filter-btn').length > 0 && !document.querySelector('.filter-btn').dataset.listenerAttached) setupFiltros();
+            return;
         }
-        // Se o evento for de logout e o usuário já for null, também ignora
         if (_event === 'SIGNED_OUT' && newUserId === null && currentUserId === null && initialLoadComplete) {
              console.log('Auth state event ignored (already logged out):', _event);
              return;
         }
 
-
         console.log('Auth state change requires UI reload. Event:', _event, ' Current User:', currentUserId, ' New User:', newUserId);
-        currentUserId = newUserId; // Atualiza quem está logado
+        // --- CORREÇÃO: Apenas atribui, não re-declara ---
+        currentUserId = newUserId;
 
         if (session && session.user) {
+            // Garante que a função termine antes de continuar
             await entrarModoAdmin(session.user);
         } else {
             entrarModoPublico();
         }
         initialLoadComplete = true; // Marca que a primeira carga/mudança válida foi feita
         // Garante que os filtros sejam reconfigurados após a UI ser (re)desenhada
-         setupFiltros(); // Reconfigura os listeners dos filtros
+         setupFiltros();
     });
 
-    // Verificação inicial explícita pode não ser necessária pois onAuthStateChange dispara INITIAL_SESSION
-    // Mas vamos manter por segurança, caso INITIAL_SESSION não dispare imediatamente
+    // Verificação inicial explícita - Pode ser redundante com INITIAL_SESSION, mas adiciona robustez
     try {
-        const { data: { session: initialSession } } = await supabaseClient.auth.getSession();
-        console.log("Sessão inicial verificada (getSession):", initialSession ? "Exists" : "Null");
-        // Se onAuthStateChange ainda não rodou E a sessão existe, força a entrada admin
-        if (!initialLoadComplete && initialSession && initialSession.user) {
-            console.log("Forçando render inicial Admin via getSession");
-            currentUserId = initialSession.user.id;
-            await entrarModoAdmin(initialSession.user);
-            setupFiltros();
-            initialLoadComplete = true;
-        } else if (!initialLoadComplete && !initialSession) {
-             console.log("Forçando render inicial Público via getSession");
-             currentUserId = null;
-             entrarModoPublico();
-             setupFiltros();
-             initialLoadComplete = true;
+        // Verifica se a carga inicial já foi feita pelo onAuthStateChange antes de forçar
+        if (!initialLoadComplete) {
+            console.log("Verificando sessão inicial via getSession...");
+            const { data: { session: initialSession } } = await supabaseClient.auth.getSession();
+            console.log("Sessão inicial (getSession):", initialSession ? "Exists" : "Null");
+
+            // Só executa se initialLoadComplete AINDA for false
+            if (!initialLoadComplete) {
+                 const initialUserId = initialSession?.user?.id ?? null;
+                 // --- CORREÇÃO: Apenas atribui, não re-declara ---
+                 currentUserId = initialUserId; // Define o ID inicial
+
+                if (initialSession && initialSession.user) {
+                    console.log("Forçando render inicial Admin via getSession");
+                    await entrarModoAdmin(initialSession.user);
+                } else {
+                    console.log("Forçando render inicial Público via getSession");
+                    entrarModoPublico();
+                }
+                setupFiltros();
+                initialLoadComplete = true; // Marca como completo após render forçado
+            } else {
+                 console.log("Render inicial já tratado pelo onAuthStateChange.");
+            }
+        } else {
+             console.log("Carga inicial já completa, getSession não forçará render.");
         }
     } catch (e) {
         console.error("Erro ao obter sessão inicial:", e);
+        // Garante renderização pública em caso de erro grave na inicialização
         if (!initialLoadComplete) {
-            entrarModoPublico(); // Garante uma renderização mesmo se getSession falhar
+            currentUserId = null;
+            entrarModoPublico();
             setupFiltros();
             initialLoadComplete = true;
         }
     }
-
 });
 
-// REMOVIDAS as referências globais que não estão definidas
-// window.atualizarCampo = atualizarCampo;
-// window.handleEnterPress = handleEnterPress;
+// REMOVIDAS as referências globais que não estão definidas ou não são necessárias
+// window.atualizarCampo = atualizarCampo; // Esta função não existe mais globalmente
+// window.handleEnterPress = handleEnterPress; // Esta função foi removida
+
+// Mantém as que são usadas pelo HTML
+window.deletarProjeto = deletarProjeto;
+window.salvarAlteracoesProjeto = salvarAlteracoesProjeto;
