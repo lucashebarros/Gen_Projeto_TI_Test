@@ -100,6 +100,11 @@ async function carregarProjetos(isAdmin) {
     // ORDENAÇÃO CORRETA: Apenas pelo priority_index
     query = query.order('priority_index', { ascending: true, nullsFirst: false }); 
 
+
+
+
+
+
     const { data: projetos, error: fetchError } = await query;
     
     if (fetchError) { projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; color: red;">Erro ao carregar projetos.</td></tr>`; return; }
@@ -128,6 +133,7 @@ async function carregarProjetos(isAdmin) {
 
         if (isAdmin) {
             // RESTAURADO: Campo 'prioridade' na tabela admin
+
             tr.innerHTML = `
                 <td>${p.nome}</td>
                 <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option><option value="Infraestrutura" ${p.responsavel === 'Infraestrutura' ? 'selected' : ''}>Infraestrutura</option><option value="Suporte" ${p.responsavel === 'Suporte' ? 'selected' : ''}>Suporte</option></select></td>
@@ -136,6 +142,7 @@ async function carregarProjetos(isAdmin) {
                 <td><textarea data-column="situacao">${p.situacao||''}</textarea></td>
                 <td><input type="date" data-column="prazo" value="${p.prazo||''}" /></td>
                 <td><select data-column="prioridade"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td> 
+
                 <td>
                    <select data-column="priority_index" style="width: 70px; text-align: center;">
                        ${indexOptionsHtml}
@@ -150,6 +157,7 @@ async function carregarProjetos(isAdmin) {
                 </td>`;
         } else {
              // RESTAURADO: Campo 'prioridade' na visão pública
+
             tr.innerHTML = `
                 <td>${p.nome||''}</td>
                 <td>${p.responsavel||''}</td>
@@ -203,9 +211,12 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
     fields.forEach(field => {
         const coluna = field.getAttribute('data-column');
         // A coluna 'prioridade' será pega automaticamente aqui
+
+
         let valor = field.value;
         
         if (coluna === 'priority_index') { 
+
             valor = parseInt(valor, 10);
             if (isNaN(valor)) valor = 999; 
         }
@@ -226,6 +237,7 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
         // Recarrega se o índice foi alterado (para reordenar a exibição)
         if (updateData.hasOwnProperty('priority_index')) { 
             carregarProjetos(true); 
+
         }
     }
 }
@@ -237,6 +249,7 @@ async function deletarProjeto(id, nome) {
         else { carregarProjetos(true); }
     }
 }
+
 
 window.deletarProjeto = deletarProjeto;
 window.salvarAlteracoesProjeto = salvarAlteracoesProjeto; 
@@ -254,6 +267,9 @@ function setupFiltros() {
     });
 }
 
+
+
+
 // 6. PONTO DE PARTIDA DA APLICAÇÃO
 let initialLoadComplete = false; 
 
@@ -262,16 +278,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupFiltros();
 
     supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+
+
+
+
+
+
+
+
+
+
         const newUserId = session?.user?.id ?? null;
         if (_event === 'INITIAL_SESSION' && newUserId === usuarioLogado && initialLoadComplete) { return; }
         if (newUserId !== usuarioLogado || !initialLoadComplete) {
             usuarioLogado = newUserId; 
+
+
             if (session && session.user) {
                 await entrarModoAdmin(session.user);
             } else {
                 entrarModoPublico();
             }
             initialLoadComplete = true; 
+
         }
     });
 });
