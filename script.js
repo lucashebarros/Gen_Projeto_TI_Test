@@ -177,12 +177,12 @@ async function carregarProjetos(isAdmin) {
                 const isSelected = p.priority_index === i;
                 indexOptionsHtml += `<option value="${i}" ${isSelected ? 'selected' : ''}>${i}</option>`;
             }
-             // Adiciona 999 se necessário
-            if (p.priority_index === null || p.priority_index === 999 || (p.priority_index > N && p.priority_index !== 999)) {
-                 const currentVal = p.priority_index ?? 999;
-                 if (currentVal >= 999 && !indexOptionsHtml.includes(`value="999"`)) { // Adiciona 999 se for null ou 999
-                     indexOptionsHtml += `<option value="999" selected>999</option>`;
-                 } else if (currentVal > N && currentVal < 999 && !indexOptionsHtml.includes(`value="${currentVal}"`)) { // Adiciona valor > N se não for 999
+             // Adiciona null se necessário
+            if (p.priority_index === null || p.priority_index === null || (p.priority_index > N && p.priority_index !== null)) {
+                 const currentVal = p.priority_index ?? null;
+                 if (currentVal >= null && !indexOptionsHtml.includes(`value="null"`)) { // Adiciona null se for null ou null
+                     indexOptionsHtml += `<option value="null" selected>null</option>`;
+                 } else if (currentVal > N && currentVal < null && !indexOptionsHtml.includes(`value="${currentVal}"`)) { // Adiciona valor > N se não for null
                      indexOptionsHtml += `<option value="${currentVal}" selected>${currentVal}</option>`;
                  }
             }
@@ -268,10 +268,10 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
         const coluna = field.getAttribute('data-column');
         let valor = field.value;
 
-        // Trata índice (usa 999 se inválido/vazio)
+        // Trata índice (usa null se inválido/vazio)
         if (coluna === 'priority_index') {
             valor = parseInt(valor, 10);
-            if (isNaN(valor) || valor === null || valor === '') valor = 999;
+            if (isNaN(valor) || valor === null || valor === '') valor = null;
         }
         if (field.type === 'date' && !valor) { valor = null; }
         updateData[coluna] = valor;
