@@ -317,6 +317,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 });
 
-// REMOVIDAS as referências globais que não estão definidas ou não são necessárias
-// window.atualizarCampo = atualizarCampo;
-// window.handleEnterPress = handleEnterPress;
+window.deletarProjeto = deletarProjeto;
+window.handleEnterPress = handleEnterPress;
