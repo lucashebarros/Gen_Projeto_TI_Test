@@ -39,7 +39,7 @@ async function entrarModoAdmin(user) {
     headerAuthSection.innerHTML = `<span>Olá, ${displayName}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
     document.getElementById('logout-button').addEventListener('click', logout);
     
-    // REMOVIDO: Campo 'Prioridade' do formulário
+    // RESTAURADO: Campo 'Prioridade' no formulário
     formWrapper.innerHTML = `
         <div id="form-container" style="margin-bottom: 2rem; background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
@@ -50,6 +50,7 @@ async function entrarModoAdmin(user) {
                 <div style="flex: 1 1 30%;"><label for="form-solicitante">Solicitante:</label><input type="text" id="form-solicitante" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
                 <div style="flex: 1 1 100%;"><label for="form-situacao">Situação Atual:</label><textarea id="form-situacao" style="width: 100%; min-height: 60px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></textarea></div>
                 <div style="flex: 1 1 30%;"><label for="form-prazo">Prazo:</label><input type="date" id="form-prazo" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
+                <div style="flex: 1 1 30%;"><label for="form-prioridade">Prioridade:</label><select id="form-prioridade" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"><option value="Alta">Alta</option><option value="Média" selected>Média</option><option value="Baixa">Baixa</option></select></div>
                 <div style="flex: 1 1 100%;"><label for="form-priorizado">Priorizado Por:</label><input type="text" id="form-priorizado" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
                 <div style="flex: 1 1 100%;"><button type="submit" style="background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;">Salvar Novo Projeto</button></div>
             </form>
@@ -70,12 +71,12 @@ function entrarModoPublico() {
 
 // 5. Funções do Gerenciador de Projetos (CRUD)
 
-// REMOVIDO: Helper priorityOrder não é mais necessário
+// REMOVIDO: Helper priorityOrder não é mais necessário para ordenação
 // const priorityOrder = { 'Alta': 1, 'Média': 2, 'Baixa': 3, '': 4 };
 
 async function carregarProjetos(isAdmin) {
-    // AJUSTADO: Colspan para 10 no modo admin, 9 no público
-    const colspan = isAdmin ? 10 : 9; 
+    // AJUSTADO: Colspan correto (10 admin, 9 público)
+    const colspan = isAdmin ? 11 : 10; 
     const projectListTbody = document.getElementById('project-list');
     projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Carregando projetos...</td></tr>`;
 
@@ -83,15 +84,14 @@ async function carregarProjetos(isAdmin) {
     if (filtroAtual !== 'Todos') {
         query = query.eq('responsavel', filtroAtual);
     }
-    // ALTERADO: Ordena diretamente pelo global_index no banco
-    query = query.order('global_index', { ascending: true, nullsFirst: false }); // nullsFirst: false joga os 999 pro final
+    // ALTERADO: Ordena APENAS pelo global_index
+    query = query.order('global_index', { ascending: true, nullsFirst: false }); 
 
     const { data: projetos, error } = await query;
     
     if (error) { projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; color: red;">Erro ao carregar projetos.</td></tr>`; return; }
     
-    // REMOVIDO: Ordenação complexa no JS não é mais necessária
-    // const projetos = projetosData.sort(...) 
+    // REMOVIDO: Ordenação JS não é mais necessária
 
     if (!projetos || projetos.length === 0) { projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Nenhum projeto encontrado para o filtro "${filtroAtual}".</td></tr>`; return; }
     
@@ -101,7 +101,7 @@ async function carregarProjetos(isAdmin) {
         tr.dataset.projectId = p.id;
 
         if (isAdmin) {
-            // REMOVIDO: Campo 'prioridade'. RENOMEADO: priority_index para global_index
+            // RESTAURADO: Campo 'prioridade' na tabela admin
             tr.innerHTML = `
                 <td>${p.nome}</td>
                 <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option></select></td>
@@ -109,6 +109,7 @@ async function carregarProjetos(isAdmin) {
                 <td><input type="text" data-column="solicitante" value="${p.solicitante||''}"/></td>
                 <td><textarea data-column="situacao">${p.situacao||''}</textarea></td>
                 <td><input type="date" data-column="prazo" value="${p.prazo||''}" /></td>
+                <td><select data-column="prioridade"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
                 <td><input type="number" data-column="global_index" value="${p.global_index||'999'}" style="width: 60px; text-align: center;"/></td>
                 <td><input type="text" data-column="priorizado" value="${p.priorizado||''}"/></td>
                 <td> 
@@ -118,7 +119,7 @@ async function carregarProjetos(isAdmin) {
                     </div>
                 </td>`;
         } else {
-            // REMOVIDO: Campo 'prioridade'. RENOMEADO: priority_index para global_index
+            // RESTAURADO: Campo 'prioridade' na visão pública
             tr.innerHTML = `
                 <td>${p.nome||''}</td>
                 <td>${p.responsavel||''}</td>
@@ -126,9 +127,10 @@ async function carregarProjetos(isAdmin) {
                 <td>${p.solicitante||''}</td>
                 <td>${p.situacao||''}</td>
                 <td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td>
+                <td>${p.prioridade||''}</td> 
                 <td>${p.global_index ?? ''}</td> 
                 <td>${p.priorizado||''}</td>
-                <td></td>`; // Célula vazia para coluna Ações
+                <td></td>`;
         }
         projectListTbody.appendChild(tr);
     });
@@ -140,7 +142,7 @@ async function adicionarProjeto(event) {
     if (!user) return alert('Sessão expirada.');
     
     const form = event.target;
-    // REMOVIDO: 'prioridade'. 'global_index' usará o default do banco (999)
+    // RESTAURADO: Leitura e salvamento do campo 'prioridade'
     const formData = {
         nome: form.querySelector('#form-nome').value,
         chamado: form.querySelector('#form-chamado').value,
@@ -148,8 +150,9 @@ async function adicionarProjeto(event) {
         prazo: form.querySelector('#form-prazo').value || null,
         responsavel: form.querySelector('#form-responsavel').value,
         solicitante: form.querySelector('#form-solicitante').value,
+        prioridade: form.querySelector('#form-prioridade').value, // <-- Restaurado
         priorizado: form.querySelector('#form-priorizado').value,
-        // priority_index: 999, // Não precisa mais enviar, o BD define o default
+        // global_index usará o default do banco (999)
         user_id: user.id
     };
 
@@ -169,10 +172,8 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
 
     fields.forEach(field => {
         const coluna = field.getAttribute('data-column');
-        // Pula o campo 'prioridade' se ainda existir por algum erro
-        if (coluna === 'prioridade') return; 
-
         let valor = field.value;
+        
         // RENOMEADO: priority_index para global_index
         if (coluna === 'global_index') { 
             valor = parseInt(valor, 10);
@@ -181,6 +182,9 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
         if (field.type === 'date' && !valor) { valor = null; }
         updateData[coluna] = valor;
     });
+
+    // RESTAURADO: Garante que 'prioridade' seja incluído no update
+    // (Não precisa de tratamento especial, o data-column já pega o valor do select)
 
     const { error } = await supabaseClient.from('projetos').update(updateData).eq('id', id);
 
@@ -192,7 +196,7 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
         tr.style.outline = '2px solid red'; setTimeout(() => { tr.style.outline = ''; }, 2000);
     } else {
         tr.style.outline = '2px solid lightgreen'; setTimeout(() => { tr.style.outline = ''; }, 1500);
-        // Recarrega se o índice foi alterado
+        // Recarrega se o índice foi alterado para garantir a ordem
         if (updateData.hasOwnProperty('global_index')) { 
             carregarProjetos(true); 
         }
@@ -224,7 +228,7 @@ function setupFiltros() {
 }
 
 // 6. PONTO DE PARTIDA DA APLICAÇÃO
-let initialLoadComplete = false; // Flag para evitar recarga dupla inicial
+let initialLoadComplete = false; 
 
 document.addEventListener('DOMContentLoaded', async () => {
     setupAuthListeners();
@@ -232,26 +236,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     supabaseClient.auth.onAuthStateChange(async (_event, session) => {
         const newUserId = session?.user?.id ?? null;
-
-        // Evita redesenhar na primeira verificação se o usuário já estiver logado
-        if (_event === 'INITIAL_SESSION' && newUserId === usuarioLogado && initialLoadComplete) {
-            console.log('Initial session event ignored (user already loaded).');
-            return; 
-        }
-        
-        // Só redesenha se o usuário mudou OU se é a primeira carga
+        if (_event === 'INITIAL_SESSION' && newUserId === usuarioLogado && initialLoadComplete) { return; }
         if (newUserId !== usuarioLogado || !initialLoadComplete) {
-            console.log('Auth state change detected, reloading UI. Event:', _event);
-            usuarioLogado = newUserId; // Atualiza o usuário rastreado
-
+            usuarioLogado = newUserId; 
             if (session && session.user) {
-                await entrarModoAdmin(session.user); // Usa await para garantir que termine antes de marcar como completo
+                await entrarModoAdmin(session.user);
             } else {
                 entrarModoPublico();
             }
-            initialLoadComplete = true; // Marca a carga inicial como completa
-        } else {
-             console.log('Auth state event ignored (user unchanged):', _event);
+            initialLoadComplete = true; 
         }
     });
 });
