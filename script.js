@@ -318,4 +318,3 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 window.deletarProjeto = deletarProjeto;
-window.handleEnterPress = handleEnterPress;
