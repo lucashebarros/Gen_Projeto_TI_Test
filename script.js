@@ -6,11 +6,12 @@ const { createClient } = supabase;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // 2. Seleção dos Elementos HTML e Estado Global
+// 2. Seleção dos Elementos HTML e Estado Global
 const authContainer = document.getElementById('auth-container');
 const authForm = document.getElementById('auth-form');
 const headerAuthSection = document.getElementById('header-auth-section');
 const formWrapper = document.getElementById('form-wrapper');
-const actionsHeader = document.getElementById('actions-header');
+const actionsHeader = document.getElementById('actions-header'); // Mantém a referência ao cabeçalho
 let filtroAtual = 'Todos'; 
 let usuarioLogado = null;
 
@@ -38,15 +39,16 @@ async function entrarModoAdmin(user) {
     const displayName = profile?.full_name || user.email;
     headerAuthSection.innerHTML = `<span>Olá, ${displayName}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
     document.getElementById('logout-button').addEventListener('click', logout);
-    
-    // RESTAURADO: Campo 'Prioridade' no formulário
+
+    // Formulário de Adição (mantém o solicitante e o espaçamento)
     formWrapper.innerHTML = `
         <div id="form-container" style="margin-bottom: 2rem; background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
             <form id="add-project-form" style="display: flex; flex-wrap: wrap; row-gap: 1.2rem; column-gap: 2rem;">
                 <div style="flex: 2 1 60%;"><label for="form-nome">Nome do Projeto:</label><input type="text" id="form-nome" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
+                <div style="flex: 1 1 30%;"><label for="form-responsavel">Responsável:</label><select id="form-responsavel" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"><option value="Sistema">Sistema</option><option value="BI">BI</option><option value="Infraestrutura">Infraestrutura</option><option value="Suporte">Suporte</option></select></div>
                 <div style="flex: 1 1 30%;"><label for="form-chamado">Nº do Chamado:</label><input type="text" id="form-chamado" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
-                <div style="flex: 1 1 30%;"><label for="form-responsavel">Responsável:</label><select id="form-responsavel" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"><option value="BI">BI</option><option value="Sistema">Sistema</option></select></div>
+
                 <div style="flex: 1 1 30%;"><label for="form-solicitante">Solicitante:</label><input type="text" id="form-solicitante" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
                 <div style="flex: 1 1 100%;"><label for="form-situacao">Situação Atual:</label><textarea id="form-situacao" style="width: 100%; min-height: 60px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></textarea></div>
                 <div style="flex: 1 1 30%;"><label for="form-prazo">Prazo:</label><input type="date" id="form-prazo" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
@@ -56,7 +58,9 @@ async function entrarModoAdmin(user) {
             </form>
         </div>`;
     document.getElementById('add-project-form').addEventListener('submit', adicionarProjeto);
-    if (actionsHeader) actionsHeader.style.display = 'table-cell';
+    
+    // Mostra a coluna de Ações no cabeçalho
+    if (actionsHeader) actionsHeader.style.display = 'table-cell'; 
     carregarProjetos(true);
 }
 
@@ -65,18 +69,20 @@ function entrarModoPublico() {
     headerAuthSection.innerHTML = `<button id="login-button">Admin / Login</button>`;
     document.getElementById('login-button').addEventListener('click', () => authContainer.classList.remove('hidden'));
     formWrapper.innerHTML = '';
-    if (actionsHeader) actionsHeader.style.display = 'none';
+    
+    // Esconde a coluna de Ações no cabeçalho
+    if (actionsHeader) actionsHeader.style.display = 'none'; 
     carregarProjetos(false);
 }
 
 // 5. Funções do Gerenciador de Projetos (CRUD)
 
-// REMOVIDO: Helper priorityOrder não é mais necessário para ordenação
-// const priorityOrder = { 'Alta': 1, 'Média': 2, 'Baixa': 3, '': 4 };
+const priorityOrder = { 'Alta': 1, 'Média': 2, 'Baixa': 3, '': 4 };
+
 
 async function carregarProjetos(isAdmin) {
-    // AJUSTADO: Colspan correto (10 admin, 9 público)
-    const colspan = isAdmin ? 11 : 10; 
+    const colspan = isAdmin ? 11 : 10;
+
     const projectListTbody = document.getElementById('project-list');
     projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Carregando projetos...</td></tr>`;
 
@@ -84,33 +90,41 @@ async function carregarProjetos(isAdmin) {
     if (filtroAtual !== 'Todos') {
         query = query.eq('responsavel', filtroAtual);
     }
-    // ALTERADO: Ordena APENAS pelo global_index
-    query = query.order('global_index', { ascending: true, nullsFirst: false }); 
+    const { data: projetosData, error } = await query;
 
-    const { data: projetos, error } = await query;
-    
+
+
+
     if (error) { projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; color: red;">Erro ao carregar projetos.</td></tr>`; return; }
-    
-    // REMOVIDO: Ordenação JS não é mais necessária
 
-    if (!projetos || projetos.length === 0) { projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Nenhum projeto encontrado para o filtro "${filtroAtual}".</td></tr>`; return; }
-    
+    const projetos = projetosData.sort((a, b) => {
+        const priorityA = priorityOrder[a.prioridade || ''] || 99;
+        const priorityB = priorityOrder[b.prioridade || ''] || 99;
+        if (priorityA !== priorityB) return priorityA - priorityB;
+        const indexA = a.priority_index ?? null; 
+        const indexB = b.priority_index ?? null;
+        return indexA - indexB;
+    });
+
+    if (projetos.length === 0) { projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Nenhum projeto encontrado para o filtro "${filtroAtual}".</td></tr>`; return; }
+
     projectListTbody.innerHTML = '';
     projetos.forEach(p => {
         const tr = document.createElement('tr');
         tr.dataset.projectId = p.id;
 
         if (isAdmin) {
-            // RESTAURADO: Campo 'prioridade' na tabela admin
+            // ===== A ALTERAÇÃO ESTÁ NA ÚLTIMA CÉLULA (td) ABAIXO =====
             tr.innerHTML = `
                 <td>${p.nome}</td>
-                <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option></select></td>
+
                 <td><input type="text" data-column="chamado" value="${p.chamado||''}"/></td>
+                <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option><option value="Infraestrutura" ${p.responsavel === 'Infraestrutura' ? 'selected' : ''}>Infraestrutura</option><option value="Suporte" ${p.responsavel === 'Suporte' ? 'selected' : ''}>Suporte</option></select></td>
                 <td><input type="text" data-column="solicitante" value="${p.solicitante||''}"/></td>
                 <td><textarea data-column="situacao">${p.situacao||''}</textarea></td>
                 <td><input type="date" data-column="prazo" value="${p.prazo||''}" /></td>
                 <td><select data-column="prioridade"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
-                <td><input type="number" data-column="global_index" value="${p.global_index||'999'}" style="width: 60px; text-align: center;"/></td>
+                <td><input type="number" data-column="priority_index" value="${p.priority_index||'null'}" style="width: 60px; text-align: center;"/></td>
                 <td><input type="text" data-column="priorizado" value="${p.priorizado||''}"/></td>
                 <td> 
                     <div style="display: flex; flex-direction: column; gap: 5px; align-items: center;">
@@ -119,18 +133,17 @@ async function carregarProjetos(isAdmin) {
                     </div>
                 </td>`;
         } else {
-            // RESTAURADO: Campo 'prioridade' na visão pública
-            tr.innerHTML = `
-                <td>${p.nome||''}</td>
-                <td>${p.responsavel||''}</td>
-                <td>${p.chamado||''}</td>
-                <td>${p.solicitante||''}</td>
-                <td>${p.situacao||''}</td>
-                <td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td>
-                <td>${p.prioridade||''}</td> 
-                <td>${p.global_index ?? ''}</td> 
-                <td>${p.priorizado||''}</td>
-                <td></td>`;
+            tr.innerHTML = `<td>${p.nome||''}</td><td>${p.chamado||''}</td><td>${p.responsavel||''}</td><td>${p.solicitante||''}</td><td>${p.situacao||''}</td><td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td><td>${p.prioridade||''}</td><td>${p.priority_index ?? ''}</td><td>${p.priorizado||''}</td><td></td>`;
+
+
+
+
+
+
+
+
+
+
         }
         projectListTbody.appendChild(tr);
     });
@@ -140,27 +153,27 @@ async function adicionarProjeto(event) {
     event.preventDefault();
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert('Sessão expirada.');
-    
+
     const form = event.target;
-    // RESTAURADO: Leitura e salvamento do campo 'prioridade'
-    const formData = {
-        nome: form.querySelector('#form-nome').value,
-        chamado: form.querySelector('#form-chamado').value,
-        situacao: form.querySelector('#form-situacao').value,
-        prazo: form.querySelector('#form-prazo').value || null,
-        responsavel: form.querySelector('#form-responsavel').value,
-        solicitante: form.querySelector('#form-solicitante').value,
-        prioridade: form.querySelector('#form-prioridade').value, // <-- Restaurado
-        priorizado: form.querySelector('#form-priorizado').value,
-        // global_index usará o default do banco (999)
-        user_id: user.id
-    };
+    // Salva o solicitante
+    const formData = {nome: form.querySelector('#form-nome').value, chamado: form.querySelector('#form-chamado').value, situacao: form.querySelector('#form-situacao').value, prazo: form.querySelector('#form-prazo').value || null, responsavel: form.querySelector('#form-responsavel').value, solicitante: form.querySelector('#form-solicitante').value, prioridade: form.querySelector('#form-prioridade').value, priorizado: form.querySelector('#form-priorizado').value, priority_index: null, user_id: user.id};
+
+
+
+
+
+
+
+
+
+
 
     if (!formData.nome) { alert('O nome do projeto é obrigatório.'); return; }
     const { error } = await supabaseClient.from('projetos').insert([formData]);
     if (error) { console.error(error); alert('Falha ao adicionar projeto.'); } else { form.reset(); carregarProjetos(true); }
 }
 
+// CORRIGIDO: Função salvarAlteracoesProjeto (igual à versão anterior com o botão salvar)
 async function salvarAlteracoesProjeto(id, buttonElement) {
     const tr = document.querySelector(`tr[data-project-id='${id}']`);
     if (!tr) return;
@@ -172,19 +185,18 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
 
     fields.forEach(field => {
         const coluna = field.getAttribute('data-column');
+
+
+
         let valor = field.value;
-        
-        // RENOMEADO: priority_index para global_index
-        if (coluna === 'global_index') { 
+        if (coluna === 'priority_index') {
+
             valor = parseInt(valor, 10);
-            if (isNaN(valor)) valor = 999;
+            if (isNaN(valor)) valor = null;
         }
         if (field.type === 'date' && !valor) { valor = null; }
         updateData[coluna] = valor;
     });
-
-    // RESTAURADO: Garante que 'prioridade' seja incluído no update
-    // (Não precisa de tratamento especial, o data-column já pega o valor do select)
 
     const { error } = await supabaseClient.from('projetos').update(updateData).eq('id', id);
 
@@ -196,8 +208,8 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
         tr.style.outline = '2px solid red'; setTimeout(() => { tr.style.outline = ''; }, 2000);
     } else {
         tr.style.outline = '2px solid lightgreen'; setTimeout(() => { tr.style.outline = ''; }, 1500);
-        // Recarrega se o índice foi alterado para garantir a ordem
-        if (updateData.hasOwnProperty('global_index')) { 
+        // Recarrega se o índice ou prioridade foram alterados para garantir a ordem
+        if (updateData.hasOwnProperty('priority_index') || updateData.hasOwnProperty('prioridade')) { 
             carregarProjetos(true); 
         }
     }
@@ -211,6 +223,9 @@ async function deletarProjeto(id, nome) {
     }
 }
 
+// REMOVIDA a função handleEnterPress e atualizarCampo individual
+
+// Funções expostas globalmente
 window.deletarProjeto = deletarProjeto;
 window.salvarAlteracoesProjeto = salvarAlteracoesProjeto; 
 
@@ -227,24 +242,46 @@ function setupFiltros() {
     });
 }
 
+// Variável para rastrear o ID do usuário atualmente exibido na UI
+let currentUserId = null; 
+
 // 6. PONTO DE PARTIDA DA APLICAÇÃO
-let initialLoadComplete = false; 
+
 
 document.addEventListener('DOMContentLoaded', async () => {
     setupAuthListeners();
     setupFiltros();
 
-    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { session: initialSession } } = await supabaseClient.auth.getSession();
+    currentUserId = initialSession?.user?.id ?? null; // Define o ID inicial
+    if (initialSession && initialSession.user) {
+        console.log('Initial load: User is logged in.');
+        entrarModoAdmin(initialSession.user);
+    } else {
+        console.log('Initial load: User is logged out.');
+        entrarModoPublico();
+    }
+
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
         const newUserId = session?.user?.id ?? null;
-        if (_event === 'INITIAL_SESSION' && newUserId === usuarioLogado && initialLoadComplete) { return; }
-        if (newUserId !== usuarioLogado || !initialLoadComplete) {
-            usuarioLogado = newUserId; 
+
+        if (newUserId !== currentUserId) {
+            console.log('Auth state changed:', _event, ' New user ID:', newUserId);
+            currentUserId = newUserId; // Atualiza o ID rastreado
+
+
             if (session && session.user) {
-                await entrarModoAdmin(session.user);
+                entrarModoAdmin(session.user);
             } else {
                 entrarModoPublico();
             }
-            initialLoadComplete = true; 
+
+        } else {
+            console.log('Auth state event ignored (user unchanged):', _event);
         }
     });
 });
+
+window.atualizarCampo = atualizarCampo;
+window.deletarProjeto = deletarProjeto;
+window.handleEnterPress = handleEnterPress;
