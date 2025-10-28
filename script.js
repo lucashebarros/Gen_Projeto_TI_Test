@@ -12,50 +12,55 @@ const headerAuthSection = document.getElementById('header-auth-section');
 const formWrapper = document.getElementById('form-wrapper');
 const actionsHeader = document.getElementById('actions-header');
 let filtroAtual = 'Todos';
-let usuarioLogado = null;
+let usuarioLogado = null; // Usado para saber se é admin em carregarProjetos
+let currentUserId = null; // Usado para rastrear mudanças no onAuthStateChange
 
 // 3. Funções e Lógica de Autenticação
 function setupAuthListeners() {
-    document.getElementById('close-login-button')?.addEventListener('click', () => { authContainer.classList.add('hidden'); });
-    authForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-        const button = authForm.querySelector('button');
-        button.disabled = true; button.textContent = 'Aguarde...';
-        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-        if (error) {
-             alert(error.message);
-             // Re-enable button on error
-             button.disabled = false; button.textContent = 'Entrar';
-        }
-        // Button is re-enabled by onAuthStateChange triggering UI reload
-    });
+    // Garante que o listener só é adicionado uma vez
+    const closeButton = document.getElementById('close-login-button');
+    if (closeButton && !closeButton.dataset.listenerAttached) {
+        closeButton.addEventListener('click', () => { authContainer.classList.add('hidden'); });
+        closeButton.dataset.listenerAttached = 'true';
+    }
+    // Garante que o listener só é adicionado uma vez
+    if (authForm && !authForm.dataset.listenerAttached) {
+        authForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const button = authForm.querySelector('button');
+            button.disabled = true; button.textContent = 'Aguarde...';
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) {
+                alert(error.message);
+                button.disabled = false; button.textContent = 'Entrar'; // Reabilita em caso de erro
+            }
+            // Não precisa reabilitar em caso de sucesso, a UI será recarregada
+        });
+        authForm.dataset.listenerAttached = 'true';
+    }
 }
 async function logout() { await supabaseClient.auth.signOut(); }
 
 // 4. Lógica de Controle de Estado (Admin vs. Público)
 async function entrarModoAdmin(user) {
-    usuarioLogado = user;
-    authContainer.classList.add('hidden'); // Ensure login modal is hidden
-    // Add try-catch for profile fetching
-    let displayName = user.email; // Default to email
+    console.log("Entrando no Modo Admin para:", user.email);
+    usuarioLogado = user; // Atualiza estado global
+    authContainer.classList.add('hidden');
+    let displayName = user.email;
     try {
-        const { data: profile, error: profileError } = await supabaseClient.from('profiles').select('full_name').eq('id', user.id).single();
-        // Ignore 'Row not found' error (PGRST116), log others
-        if (profileError && profileError.code !== 'PGRST116') {
-           console.error("Erro ao buscar perfil:", profileError);
-        } else if (profile?.full_name) {
-            displayName = profile.full_name;
-        }
-    } catch (e) {
-        console.error("Exceção ao buscar perfil:", e);
-    }
+        const { data: profile, error } = await supabaseClient.from('profiles').select('full_name').eq('id', user.id).single();
+        if (error && error.code !== 'PGRST116') { console.error("Erro ao buscar perfil:", error); }
+        displayName = profile?.full_name || user.email;
+    } catch (e) { console.error("Exceção ao buscar perfil:", e); }
 
     headerAuthSection.innerHTML = `<span>Olá, ${displayName}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
-    // Add listener only if button exists
     const logoutButton = document.getElementById('logout-button');
-    if(logoutButton) logoutButton.addEventListener('click', logout);
+    // Remove listener antigo (se houver) e adiciona novo para evitar duplicação
+    logoutButton?.removeEventListener('click', logout);
+    logoutButton?.addEventListener('click', logout);
+
 
     // Formulário de Adição (com Prioridade)
     formWrapper.innerHTML = `
@@ -73,133 +78,156 @@ async function entrarModoAdmin(user) {
                 <div style="flex: 1 1 100%;"><button type="submit" style="background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;">Salvar Novo Projeto</button></div>
             </form>
         </div>`;
-    // Add listener only if form exists
-     const addForm = document.getElementById('add-project-form');
-     if(addForm) addForm.addEventListener('submit', adicionarProjeto);
+    // Add listener only if form exists and hasn't been added before
+    const addForm = document.getElementById('add-project-form');
+    if (addForm && !addForm.dataset.listenerAttached) {
+         addForm.addEventListener('submit', adicionarProjeto);
+         addForm.dataset.listenerAttached = 'true';
+    }
 
     if (actionsHeader) actionsHeader.style.display = 'table-cell';
-    carregarProjetos(true); // Load projects *after* setting up the UI
+    carregarProjetos(true); // Carrega os projetos para o modo admin
 }
 
 function entrarModoPublico() {
-    usuarioLogado = null;
+    console.log("Entrando no Modo Público.");
+    usuarioLogado = null; // Atualiza estado global
     headerAuthSection.innerHTML = `<button id="login-button">Admin / Login</button>`;
-    // Add listener only if button exists and ensure it's added only once
+    // Add listener only if button exists and hasn't been added before
     const loginButton = document.getElementById('login-button');
     if (loginButton && !loginButton.dataset.listenerAttached) {
         loginButton.addEventListener('click', () => authContainer.classList.remove('hidden'));
         loginButton.dataset.listenerAttached = 'true';
     }
-    formWrapper.innerHTML = '';
+    formWrapper.innerHTML = ''; // Limpa o formulário de adição
     if (actionsHeader) actionsHeader.style.display = 'none';
-    carregarProjetos(false);
+    carregarProjetos(false); // Carrega os projetos para o modo público
 }
 
 // 5. Funções do Gerenciador de Projetos (CRUD)
 
-// REMOVIDO: Helper priorityOrder não era usado na versão funcional para query
-// const priorityOrder = { 'Alta': 1, 'Média': 2, 'Baixa': 3, '': 4 };
-
-// ARQUIVO: script.js (Substitua APENAS esta função - Versão com Logs)
+// REMOVIDO: Helper priorityOrder não é mais necessário para ordenação JS
+// const priorityOrder = { ... };
 
 async function carregarProjetos(isAdmin) {
-    console.log(`Chamando carregarProjetos(${isAdmin}). Filtro atual: ${filtroAtual}`); // Log 1
-
-    // AJUSTE Colspan para 11 (admin) ou 10 (público) baseado no thead de 10 colunas
+    console.log(`Carregando projetos (isAdmin: ${isAdmin}, filtro: ${filtroAtual})...`);
+    // Colspan correto (10 admin, 9 público)
     const colspan = isAdmin ? 11 : 10;
     const projectListTbody = document.getElementById('project-list');
     if (!projectListTbody) {
-         console.error("ERRO CRÍTICO: Elemento tbody#project-list não encontrado!");
-         return; // Interrompe se a tabela não existe
+         console.error("ERRO CRÍTICO: tbody#project-list não encontrado ao carregar projetos!");
+         return;
     }
     projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Carregando projetos...</td></tr>`;
 
+    // 1. Busca o TOTAL de projetos para saber o N do select de ÍNDICE (só necessário no modo admin)
+    let N = 1; // Default
+    if (isAdmin) {
+        const { count: totalProjectCount, error: countError } = await supabaseClient
+            .from('projetos')
+            .select('*', { count: 'exact', head: true });
+        if (countError) {
+            console.error("Erro ao contar projetos:", countError);
+            // Não interrompe, mas o select pode ficar limitado
+        } else {
+             N = totalProjectCount > 0 ? totalProjectCount : 1;
+        }
+         console.log("Total de projetos para select:", N);
+    }
+
+
+    // 2. Busca os projetos APLICANDO O FILTRO e ORDENANDO APENAS pelo índice
     let query = supabaseClient.from('projetos').select('*');
     if (filtroAtual !== 'Todos') {
         query = query.eq('responsavel', filtroAtual);
     }
-    // REMOVEMOS a ordenação aqui para fazer no JS como estava no seu código funcional
-    // query = query.order('priority_index', { ascending: true, nullsFirst: false }); 
+    // ===== ORDENAÇÃO CORRIGIDA =====
+    query = query.order('priority_index', { ascending: true, nullsFirst: false });
 
-    const { data: projetosData, error } = await query;
+    const { data: projetos, error: fetchError } = await query;
 
-    if (error) {
-        console.error("Erro ao buscar projetos do Supabase:", error); // Log 2
+    if (fetchError) {
+        console.error("Erro ao buscar projetos:", fetchError);
         projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; color: red;">Erro ao carregar projetos. Verifique o console.</td></tr>`;
         return;
     }
 
-    console.log("Dados recebidos do Supabase:", projetosData); // Log 3
+    console.log("Projetos recebidos:", projetos ? projetos.length : 0);
 
-    // Mantém a ordenação JS que estava funcionando para você
-    const projetos = projetosData.sort((a, b) => {
-        const priorityA = priorityOrder[a.prioridade || ''] || 99;
-        const priorityB = priorityOrder[b.prioridade || ''] || 99;
-        if (priorityA !== priorityB) return priorityA - priorityB;
-        // Usa 999 se o índice for null para jogar pro final
-        const indexA = a.priority_index ?? 999;
-        const indexB = b.priority_index ?? 999;
-        return indexA - indexB;
-    });
-
-    console.log("Dados ordenados:", projetos); // Log 4
+    // REMOVIDA A ORDENAÇÃO JS
 
     if (!projetos || projetos.length === 0) {
-        console.log("Nenhum projeto encontrado após filtro/ordenação."); // Log 5
         projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Nenhum projeto encontrado para o filtro "${filtroAtual}".</td></tr>`;
         return;
     }
 
     projectListTbody.innerHTML = ''; // Limpa o "Carregando..."
-    console.log(`Renderizando ${projetos.length} projetos...`); // Log 6
-    
-    projetos.forEach((p, loopIndex) => { // Adiciona loopIndex para depuração
+    projetos.forEach(p => {
         const tr = document.createElement('tr');
         tr.dataset.projectId = p.id;
 
-        try { // Adiciona try-catch para pegar erros na montagem do HTML
-            if (isAdmin) {
-                // Versão Admin (com Prioridade e Índice)
-                tr.innerHTML = `
-                    <td>${p.nome}</td>
-                    <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option><option value="Infraestrutura" ${p.responsavel === 'Infraestrutura' ? 'selected' : ''}>Infraestrutura</option><option value="Suporte" ${p.responsavel === 'Suporte' ? 'selected' : ''}>Suporte</option></select></td>
-                    <td><input type="text" data-column="chamado" value="${p.chamado||''}"/></td>
-                    <td><input type="text" data-column="solicitante" value="${p.solicitante||''}"/></td>
-                    <td><textarea data-column="situacao">${p.situacao||''}</textarea></td>
-                    <td><input type="date" data-column="prazo" value="${p.prazo||''}" /></td>
-                    <td><select data-column="prioridade"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
-                    <td><input type="number" data-column="priority_index" value="${p.priority_index===null ? '' : p.priority_index}" style="width: 60px; text-align: center;"/></td>
-                    <td><input type="text" data-column="priorizado" value="${p.priorizado||''}"/></td>
-                    <td>
-                        <div style="display: flex; flex-direction: column; gap: 5px; align-items: center;">
-                            <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Salvar</button>
-                            <button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Excluir</button>
-                        </div>
-                    </td>`;
-            } else {
-                 // Versão Pública (com Prioridade e Índice)
-                tr.innerHTML = `
-                    <td>${p.nome||''}</td>
-                    <td>${p.responsavel||''}</td>
-                    <td>${p.chamado||''}</td>
-                    <td>${p.solicitante||''}</td>
-                    <td>${p.situacao||''}</td>
-                    <td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td>
-                    <td>${p.prioridade||''}</td>
-                    <td>${p.priority_index ?? ''}</td>
-                    <td>${p.priorizado||''}</td>
-                    <td></td>`; // Célula vazia para coluna Ações
+        // Gera as opções para o <select> do ÍNDICE (só se for admin)
+        let indexOptionsHtml = '';
+        if (isAdmin) {
+            for (let i = 1; i <= N; i++) {
+                const isSelected = p.priority_index === i;
+                indexOptionsHtml += `<option value="${i}" ${isSelected ? 'selected' : ''}>${i}</option>`;
             }
-            projectListTbody.appendChild(tr);
-        } catch (renderError) {
-             console.error(`Erro ao renderizar linha ${loopIndex} para projeto ID ${p.id}:`, renderError); // Log 7
-             // Opcional: Adicionar uma linha de erro na tabela
-             const errorTr = document.createElement('tr');
-             errorTr.innerHTML = `<td colspan="${colspan}" style="color: red; background-color: #ffe0e0;">Erro ao renderizar projeto ID ${p.id}. Verifique o console.</td>`;
-             projectListTbody.appendChild(errorTr);
+             // Adiciona 999 se necessário e se não estiver já no loop 1 a N
+            if ((p.priority_index === null || p.priority_index === 999 || p.priority_index > N) && N < 999 ) {
+                 const currentVal = p.priority_index ?? 999;
+                 // Evita adicionar 999 duas vezes se N=999
+                 if (!indexOptionsHtml.includes(`value="999"`)) {
+                    indexOptionsHtml += `<option value="999" ${currentVal === 999 ? 'selected' : ''}>999</option>`;
+                 } else if (currentVal > N && currentVal !== 999) {
+                     // Adiciona o valor exato se for > N e não 999
+                     indexOptionsHtml += `<option value="${currentVal}" selected>${currentVal}</option>`;
+                 }
+            } else if (p.priority_index > N && p.priority_index !== 999) {
+                 indexOptionsHtml += `<option value="${p.priority_index}" selected>${p.priority_index}</option>`;
+            }
         }
+
+
+        if (isAdmin) {
+            // Tabela Admin (com Prioridade e Índice Select)
+            tr.innerHTML = `
+                <td>${p.nome}</td>
+                <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option><option value="Infraestrutura" ${p.responsavel === 'Infraestrutura' ? 'selected' : ''}>Infraestrutura</option><option value="Suporte" ${p.responsavel === 'Suporte' ? 'selected' : ''}>Suporte</option></select></td>
+                <td><input type="text" data-column="chamado" value="${p.chamado||''}"/></td>
+                <td><input type="text" data-column="solicitante" value="${p.solicitante||''}"/></td>
+                <td><textarea data-column="situacao">${p.situacao||''}</textarea></td>
+                <td><input type="date" data-column="prazo" value="${p.prazo||''}" /></td>
+                <td><select data-column="prioridade"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
+                <td>
+                   <select data-column="priority_index" style="width: 70px; text-align: center;">
+                       ${indexOptionsHtml}
+                   </select>
+                </td>
+                <td><input type="text" data-column="priorizado" value="${p.priorizado||''}"/></td>
+                <td>
+                    <div style="display: flex; flex-direction: column; gap: 5px; align-items: center;">
+                        <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Salvar</button>
+                        <button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Excluir</button>
+                    </div>
+                </td>`;
+        } else {
+             // Visão Pública (com Prioridade e Índice)
+            tr.innerHTML = `
+                <td>${p.nome||''}</td>
+                <td>${p.responsavel||''}</td>
+                <td>${p.chamado||''}</td>
+                <td>${p.solicitante||''}</td>
+                <td>${p.situacao||''}</td>
+                <td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td>
+                <td>${p.prioridade||''}</td>
+                <td>${p.priority_index ?? ''}</td>
+                <td>${p.priorizado||''}</td>
+                <td></td>`; // Célula vazia para coluna Ações
+        }
+        projectListTbody.appendChild(tr);
     });
-    console.log("Renderização da tabela concluída."); // Log 8
+     console.log("Renderização da tabela concluída.");
 }
 
 async function adicionarProjeto(event) {
@@ -208,7 +236,7 @@ async function adicionarProjeto(event) {
     if (!user) return alert('Sessão expirada.');
 
     const form = event.target;
-    // Mantém 'prioridade', não envia 'priority_index' (usa default DB)
+    // Mantém 'prioridade', usa default do DB para 'priority_index'
     const formData = {
         nome: form.querySelector('#form-nome').value,
         chamado: form.querySelector('#form-chamado').value,
@@ -240,7 +268,7 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
         const coluna = field.getAttribute('data-column');
         let valor = field.value;
 
-        // Trata índice, usa 999 se inválido ou vazio
+        // Trata índice (usa 999 se inválido/vazio)
         if (coluna === 'priority_index') {
             valor = parseInt(valor, 10);
             if (isNaN(valor) || valor === null || valor === '') valor = 999;
@@ -249,18 +277,21 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
         updateData[coluna] = valor;
     });
 
+    console.log("Salvando alterações:", updateData); // Log para depuração
     const { error } = await supabaseClient.from('projetos').update(updateData).eq('id', id);
 
     buttonElement.disabled = false; buttonElement.textContent = 'Salvar'; tr.style.opacity = '1';
 
     if (error) {
         console.error("Erro ao salvar alterações:", error);
-        alert(`Falha ao salvar as alterações do projeto.`);
+        alert(`Falha ao salvar as alterações do projeto. Verifique o console.`);
         tr.style.outline = '2px solid red'; setTimeout(() => { tr.style.outline = ''; }, 2000);
     } else {
+        console.log("Alterações salvas com sucesso!");
         tr.style.outline = '2px solid lightgreen'; setTimeout(() => { tr.style.outline = ''; }, 1500);
         // Recarrega se o índice foi alterado (para reordenar)
         if (updateData.hasOwnProperty('priority_index')) {
+            console.log("Índice alterado, recarregando tabela para reordenar.");
             carregarProjetos(true);
         }
     }
@@ -281,13 +312,13 @@ window.salvarAlteracoesProjeto = salvarAlteracoesProjeto;
 function setupFiltros() {
     const botoes = document.querySelectorAll('.filter-btn');
     botoes.forEach(botao => {
-        // Evita adicionar múltiplos listeners
+        // Garante que só adiciona o listener uma vez
         if (botao.dataset.listenerAttached !== 'true') {
              botao.addEventListener('click', () => {
                 botoes.forEach(b => b.classList.remove('active'));
                 botao.classList.add('active');
                 filtroAtual = botao.textContent;
-                const isAdmin = !!usuarioLogado;
+                const isAdmin = !!usuarioLogado; // Verifica se está logado para passar para carregarProjetos
                 carregarProjetos(isAdmin);
             });
             botao.dataset.listenerAttached = 'true';
@@ -307,42 +338,64 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Listener para mudanças de estado de autenticação
     supabaseClient.auth.onAuthStateChange(async (_event, session) => {
-        console.log("Auth Event:", _event, "Session:", session);
+        console.log("Auth Event:", _event, "Session:", session ? "Exists" : "Null");
         const newUserId = session?.user?.id ?? null;
 
         // Lógica aprimorada para evitar recargas desnecessárias
-        // Só recarrega se o usuário mudou OU se é a carga inicial e ainda não foi completada
-        if (newUserId !== currentUserId || !initialLoadComplete) {
-            console.log('Auth state change requires UI reload. Event:', _event);
-            currentUserId = newUserId; // Atualiza quem está logado
-
-            if (session && session.user) {
-                // É crucial esperar a UI ser montada antes de carregar dados
-                await entrarModoAdmin(session.user);
-            } else {
-                entrarModoPublico();
-            }
-             // Garante que os filtros sejam reconfigurados após a UI ser (re)desenhada
-             setupFiltros();
-            initialLoadComplete = true; // Marca que a primeira carga/mudança válida foi feita
-        } else {
-            console.log('Auth state event ignored (user unchanged or initial load already handled):', _event);
+        if ((_event === 'INITIAL_SESSION' || _event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') && newUserId === currentUserId && initialLoadComplete) {
+            console.log('Auth state event ignored (user unchanged or already loaded):', _event);
+            return; // Ignora se o usuário não mudou e a carga inicial já foi feita
         }
+        // Se o evento for de logout e o usuário já for null, também ignora
+        if (_event === 'SIGNED_OUT' && newUserId === null && currentUserId === null && initialLoadComplete) {
+             console.log('Auth state event ignored (already logged out):', _event);
+             return;
+        }
+
+
+        console.log('Auth state change requires UI reload. Event:', _event, ' Current User:', currentUserId, ' New User:', newUserId);
+        currentUserId = newUserId; // Atualiza quem está logado
+
+        if (session && session.user) {
+            await entrarModoAdmin(session.user);
+        } else {
+            entrarModoPublico();
+        }
+        initialLoadComplete = true; // Marca que a primeira carga/mudança válida foi feita
+        // Garante que os filtros sejam reconfigurados após a UI ser (re)desenhada
+         setupFiltros(); // Reconfigura os listeners dos filtros
     });
 
-    // Verificação inicial explícita após configurar o listener
-    // Isso garante que a primeira renderização aconteça
+    // Verificação inicial explícita pode não ser necessária pois onAuthStateChange dispara INITIAL_SESSION
+    // Mas vamos manter por segurança, caso INITIAL_SESSION não dispare imediatamente
     try {
         const { data: { session: initialSession } } = await supabaseClient.auth.getSession();
-        console.log("Sessão inicial verificada:", initialSession);
-        // A lógica dentro do onAuthStateChange ('INITIAL_SESSION') cuidará da renderização inicial
+        console.log("Sessão inicial verificada (getSession):", initialSession ? "Exists" : "Null");
+        // Se onAuthStateChange ainda não rodou E a sessão existe, força a entrada admin
+        if (!initialLoadComplete && initialSession && initialSession.user) {
+            console.log("Forçando render inicial Admin via getSession");
+            currentUserId = initialSession.user.id;
+            await entrarModoAdmin(initialSession.user);
+            setupFiltros();
+            initialLoadComplete = true;
+        } else if (!initialLoadComplete && !initialSession) {
+             console.log("Forçando render inicial Público via getSession");
+             currentUserId = null;
+             entrarModoPublico();
+             setupFiltros();
+             initialLoadComplete = true;
+        }
     } catch (e) {
         console.error("Erro ao obter sessão inicial:", e);
-        // Pode ser necessário chamar entrarModoPublico() aqui em caso de erro grave
-        entrarModoPublico(); // Garante uma renderização mesmo se getSession falhar
-        initialLoadComplete = true; // Marca como completo para evitar loop
+        if (!initialLoadComplete) {
+            entrarModoPublico(); // Garante uma renderização mesmo se getSession falhar
+            setupFiltros();
+            initialLoadComplete = true;
+        }
     }
 
 });
 
-window.deletarProjeto = deletarProjeto;
+// REMOVIDAS as referências globais que não estão definidas
+// window.atualizarCampo = atualizarCampo;
+// window.handleEnterPress = handleEnterPress;
