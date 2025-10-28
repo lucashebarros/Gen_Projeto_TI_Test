@@ -110,10 +110,13 @@ function entrarModoPublico() {
 // REMOVIDO: Helper priorityOrder (não será usado para ordenação)
 // const priorityOrder = { ... };
 
+// ARQUIVO: script.js (Substitua APENAS esta função)
+
 async function carregarProjetos(isAdmin) {
     console.log(`Carregando projetos (isAdmin: ${isAdmin}, filtro: ${filtroAtual})...`); // Log
-    // Colspan correto (10 admin, 9 público)
-    const colspan = isAdmin ? 11 : 10;
+
+    // ===== CORREÇÃO 1: Colspan ajustado para 10 =====
+    const colspan = 10; // 9 colunas de dados + 1 Ações (se admin)
     const projectListTbody = document.getElementById('project-list');
     if (!projectListTbody) {
          console.error("ERRO CRÍTICO: tbody#project-list não encontrado!"); return;
@@ -121,9 +124,9 @@ async function carregarProjetos(isAdmin) {
     projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Carregando projetos...</td></tr>`;
 
     // 1. Busca o TOTAL de projetos para saber o N do select de ÍNDICE (só no modo admin)
-    let N = 1;
+    let N = 1; // Default
     if (isAdmin) {
-        try { // Add try-catch for count query
+        try {
             const { count: totalProjectCount, error: countError } = await supabaseClient
                 .from('projetos')
                 .select('*', { count: 'exact', head: true });
@@ -132,16 +135,15 @@ async function carregarProjetos(isAdmin) {
             console.log("Total de projetos para select:", N); // Log
         } catch(e) {
             console.error("Erro ao contar projetos:", e);
-            // Continua mesmo assim, o select pode ficar limitado
+            // Continua, mas o select pode ter menos opções
         }
     }
 
-    // 2. Busca os projetos APLICANDO O FILTRO e ORDENANDO APENAS pelo índice
+    // 2. Busca os projetos APLICANDO O FILTRO e ORDENANDO pelo índice
     let query = supabaseClient.from('projetos').select('*');
     if (filtroAtual !== 'Todos') {
         query = query.eq('responsavel', filtroAtual);
     }
-    // ===== ORDENAÇÃO CORRIGIDA =====
     query = query.order('priority_index', { ascending: true, nullsFirst: false });
 
     const { data: projetos, error: fetchError } = await query;
@@ -153,76 +155,88 @@ async function carregarProjetos(isAdmin) {
     }
     console.log("Projetos recebidos:", projetos ? projetos.length : 0); // Log
 
-    // REMOVIDA A ORDENAÇÃO JS
-
     if (!projetos || projetos.length === 0) {
         projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Nenhum projeto encontrado para o filtro "${filtroAtual}".</td></tr>`;
         return;
     }
 
-    projectListTbody.innerHTML = '';
-    projetos.forEach(p => {
+    projectListTbody.innerHTML = ''; // Limpa o "Carregando..."
+    console.log(`Renderizando ${projetos.length} projetos...`); // Log
+    
+    projetos.forEach((p, loopIndex) => {
         const tr = document.createElement('tr');
         tr.dataset.projectId = p.id;
 
-        // Gera as opções para o <select> do ÍNDICE (só se for admin)
-        let indexOptionsHtml = '';
-        if (isAdmin) {
-            for (let i = 1; i <= N; i++) {
-                const isSelected = p.priority_index === i;
-                indexOptionsHtml += `<option value="${i}" ${isSelected ? 'selected' : ''}>${i}</option>`;
-            }
-             // Adiciona 999 se necessário
-            if (p.priority_index === null || p.priority_index === 999 || (p.priority_index > N && p.priority_index !== 999)) {
-                 const currentVal = p.priority_index ?? 999;
-                 if (currentVal >= 999 && !indexOptionsHtml.includes(`value="999"`)) { // Adiciona 999 se for null ou 999
-                     indexOptionsHtml += `<option value="999" selected>999</option>`;
-                 } else if (currentVal > N && currentVal < 999 && !indexOptionsHtml.includes(`value="${currentVal}"`)) { // Adiciona valor > N se não for 999
-                     indexOptionsHtml += `<option value="${currentVal}" selected>${currentVal}</option>`;
+        try { // try-catch para erros de renderização
+            // Gera as opções para o <select> do ÍNDICE (só se for admin)
+            let indexOptionsHtml = '';
+            if (isAdmin) {
+                 // Garante que N seja pelo menos o valor atual do índice se for maior
+                 const maxOption = Math.max(N, p.priority_index ?? 0); 
+                for (let i = 1; i <= maxOption; i++) {
+                     // Não inclui 999 no loop principal se for maior que N
+                     if (i === 999 && i > N) continue; 
+                    const isSelected = p.priority_index === i;
+                    indexOptionsHtml += `<option value="${i}" ${isSelected ? 'selected' : ''}>${i}</option>`;
+                }
+                // Garante que 999 (ou null) seja uma opção selecionável
+                 const currentIndexValue = p.priority_index ?? 999;
+                 if (currentIndexValue >= 999 && !indexOptionsHtml.includes(`value="999"`)) {
+                    indexOptionsHtml += `<option value="999" selected>999</option>`;
+                 }
+                 // Garante que o valor atual, se > N, seja uma opção (mesmo que duplicada visualmente)
+                 else if (currentIndexValue > N && !indexOptionsHtml.includes(`value="${currentIndexValue}"`)){
+                      indexOptionsHtml += `<option value="${currentIndexValue}" selected>${currentIndexValue}</option>`;
                  }
             }
-        }
 
 
-        if (isAdmin) {
-            // Tabela Admin (com Prioridade e Índice Select)
-            tr.innerHTML = `
-                <td>${p.nome}</td>
-                <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option><option value="Infraestrutura" ${p.responsavel === 'Infraestrutura' ? 'selected' : ''}>Infraestrutura</option><option value="Suporte" ${p.responsavel === 'Suporte' ? 'selected' : ''}>Suporte</option></select></td>
-                <td><input type="text" data-column="chamado" value="${p.chamado||''}"/></td>
-                <td><input type="text" data-column="solicitante" value="${p.solicitante||''}"/></td>
-                <td><textarea data-column="situacao">${p.situacao||''}</textarea></td>
-                <td><input type="date" data-column="prazo" value="${p.prazo||''}" /></td>
-                <td><select data-column="prioridade"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
-                <td>
-                   <select data-column="priority_index" style="width: 70px; text-align: center;">
-                       ${indexOptionsHtml}
-                   </select>
-                </td>
-                <td><input type="text" data-column="priorizado" value="${p.priorizado||''}"/></td>
-                <td>
-                    <div style="display: flex; flex-direction: column; gap: 5px; align-items: center;">
-                        <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Salvar</button>
-                        <button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Excluir</button>
-                    </div>
-                </td>`;
-        } else {
-             // Visão Pública (com Prioridade e Índice)
-            tr.innerHTML = `
-                <td>${p.nome||''}</td>
-                <td>${p.responsavel||''}</td>
-                <td>${p.chamado||''}</td>
-                <td>${p.solicitante||''}</td>
-                <td>${p.situacao||''}</td>
-                <td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td>
-                <td>${p.prioridade||''}</td>
-                <td>${p.priority_index ?? ''}</td>
-                <td>${p.priorizado||''}</td>
-                <td></td>`; // Célula vazia para coluna Ações
+            if (isAdmin) {
+                // Tabela Admin (com Prioridade e Índice Select)
+                tr.innerHTML = `
+                    <td>${p.nome}</td>
+                    <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option><option value="Infraestrutura" ${p.responsavel === 'Infraestrutura' ? 'selected' : ''}>Infraestrutura</option><option value="Suporte" ${p.responsavel === 'Suporte' ? 'selected' : ''}>Suporte</option></select></td>
+                    <td><input type="text" data-column="chamado" value="${p.chamado||''}"/></td>
+                    <td><input type="text" data-column="solicitante" value="${p.solicitante||''}"/></td>
+                    <td><textarea data-column="situacao">${p.situacao||''}</textarea></td>
+                    <td><input type="date" data-column="prazo" value="${p.prazo||''}" /></td>
+                    <td><select data-column="prioridade"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
+                    <td>
+                       <select data-column="priority_index" style="width: 70px; text-align: center;">
+                           ${indexOptionsHtml}
+                       </select>
+                    </td>
+                    <td><input type="text" data-column="priorizado" value="${p.priorizado||''}"/></td>
+                    <td>
+                        <div style="display: flex; flex-direction: column; gap: 5px; align-items: center;">
+                            <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Salvar</button>
+                            <button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Excluir</button>
+                        </div>
+                    </td>`;
+            } else {
+                 // Visão Pública (com Prioridade e Índice)
+                tr.innerHTML = `
+                    <td>${p.nome||''}</td>
+                    <td>${p.responsavel||''}</td>
+                    <td>${p.chamado||''}</td>
+                    <td>${p.solicitante||''}</td>
+                    <td>${p.situacao||''}</td>
+                    <td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td>
+                    <td>${p.prioridade||''}</td>
+                    <td>${p.priority_index ?? ''}</td>
+                    <td>${p.priorizado||''}</td>
+                    <td></td>`; // Célula vazia para coluna Ações
+            }
+            projectListTbody.appendChild(tr);
+
+        } catch (renderError) {
+             console.error(`Erro CRÍTICO ao renderizar linha ${loopIndex} para projeto ID ${p.id}:`, renderError); // Log
+             const errorTr = document.createElement('tr');
+             errorTr.innerHTML = `<td colspan="${colspan}" style="color: red; background-color: #ffe0e0;">Erro ao renderizar projeto ID ${p.id}. Verifique o console.</td>`;
+             projectListTbody.appendChild(errorTr);
         }
-        projectListTbody.appendChild(tr);
     });
-     console.log("Renderização da tabela concluída."); // Log
+    console.log("Renderização da tabela concluída."); // Log
 }
 
 async function adicionarProjeto(event) {
