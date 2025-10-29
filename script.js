@@ -117,103 +117,115 @@ function entrarModoPublico() {
 }
 
 
+// ARQUIVO: script.js (Substitua esta função)
+
 async function carregarProjetos(isAdmin) {
+    console.log(`Carregando projetos (isAdmin: ${isAdmin}, filtro: ${filtroAtual})...`);
     const colspan = isAdmin ? 11 : 10;
     const projectListTbody = document.getElementById('project-list');
-    if (!projectListTbody) { console.error("tbody#project-list não encontrado!"); return; }
+    if (!projectListTbody) { console.error("ERRO CRÍTICO: tbody#project-list não encontrado!"); return; }
     projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Carregando projetos...</td></tr>`;
 
-    let N = 0;
-    try {
-        let countQuery = supabaseClient.from('projetos').select('*', { count: 'exact', head: true });
-        if (filtroAtual !== 'Todos') {
-            countQuery = countQuery.eq('responsavel', filtroAtual); 
-        }
-        const { count: totalProjectCount, error: countError } = await countQuery;
-        
-        if (countError) throw countError;
-        N = totalProjectCount > 0 ? totalProjectCount : 1; 
-    } catch (e) {
-        console.error("Erro ao contar projetos (pode afetar o select de índice):", e);
-        const { count: fallbackCount } = await supabaseClient.from('projetos').select('*', { count: 'exact', head: true });
-        N = fallbackCount > 0 ? fallbackCount : 1;
+    // 1. Busca contagem (só admin)
+    let N = 1;
+    if (isAdmin) {
+        try {
+            const { count, error } = await supabaseClient.from('projetos').select('*', { count: 'exact', head: true });
+            if (error) throw error;
+            N = count > 0 ? count : 1;
+        } catch(e) { console.error("Erro ao contar projetos:", e); }
     }
 
+    // 2. Busca projetos com filtro e ordenação por índice
     let query = supabaseClient.from('projetos').select('*');
     if (filtroAtual !== 'Todos') {
         query = query.eq('responsavel', filtroAtual);
     }
     query = query.order('priority_index', { ascending: true, nullsFirst: false });
 
-    const { data: projetos, error } = await query;
+    const { data: projetos, error: fetchError } = await query;
 
-    if (error) { 
-        console.error("Erro ao carregar projetos:", error);
-        projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; color: red;">Erro ao carregar projetos.</td></tr>`; 
-        return; 
-    }
-
-
-    if (!projetos || projetos.length === 0) { 
-        projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Nenhum projeto encontrado para o filtro "${filtroAtual}".</td></tr>`; 
-        return; 
-    }
+    if (fetchError) { console.error("Erro ao buscar projetos:", fetchError); projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; color: red;">Erro ao carregar.</td></tr>`; return; }
+    if (!projetos || projetos.length === 0) { projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Nenhum projeto encontrado.</td></tr>`; return; }
 
     projectListTbody.innerHTML = '';
+    
+    // ===== NOVO: Determina o responsável do usuário logado ANTES do loop =====
+    const currentUserResponsavel = usuarioLogado ? emailResponsavelMap[usuarioLogado.email] : null;
+    // ======================================================================
+
     projetos.forEach(p => {
         const tr = document.createElement('tr');
         tr.dataset.projectId = p.id;
-        
+
+        // ===== NOVO: Verifica se a linha é editável =====
+        // Editável se for admin E (o usuário logado é o criador OU o usuário logado é o responsável)
+        // A regra RLS do Supabase (auth.uid = user_id) ainda protege no backend.
+        const isOwner = usuarioLogado && usuarioLogado.id === p.user_id;
+        const isResponsible = usuarioLogado && currentUserResponsavel === p.responsavel;
+        const canEditThisRow = isAdmin && (isOwner || isResponsible || currentUserResponsavel === null); // currentUserResponsavel === null é o Bruno? Melhor checar email.
+        // const canEditThisRow = isAdmin && usuarioLogado && (usuarioLogado.id === p.user_id || emailResponsavelMap[usuarioLogado.email] === p.responsavel || usuarioLogado.email === 'brunorissio@garbuio.com.br'); // Bruno pode editar tudo? Ou só se for o responsável? Vamos manter a regra: só edita se for o responsável OU o criador. Bruno só edita se for o responsável.
+        const canEditRow = isAdmin && usuarioLogado && (usuarioLogado.id === p.user_id || currentUserResponsavel === p.responsavel); // Simplificado: Criador OU Responsável podem editar
+        const isBruno = usuarioLogado && usuarioLogado.email === 'brunorissio@garbuio.com.br'; // Caso especial Bruno
+
+        // Gera as opções para o <select> do ÍNDICE
         let indexOptionsHtml = '';
-        if (isAdmin) {
-             const maxOption = Math.max(N, p.priority_index ?? 0); 
+         if (isAdmin) { // Só gera se for admin, otimização
+             const maxOption = Math.max(N, p.priority_index ?? 0);
             for (let i = 1; i <= maxOption; i++) {
-                 if (i === null && i > N) continue; 
+                 if (i === 999 && i > N) continue;
                 const isSelected = p.priority_index === i;
                 indexOptionsHtml += `<option value="${i}" ${isSelected ? 'selected' : ''}>${i}</option>`;
             }
-             const currentIndexValue = p.priority_index ?? null;
-             if (currentIndexValue >= null && !indexOptionsHtml.includes(`value="null"`)) {
-                indexOptionsHtml += `<option value="null" selected>null</option>`;
-             } else if (currentIndexValue > N && currentIndexValue < null && !indexOptionsHtml.includes(`value="${currentIndexValue}"`)){
+             const currentIndexValue = p.priority_index ?? 999;
+             if (currentIndexValue >= 999 && !indexOptionsHtml.includes(`value="999"`)) {
+                indexOptionsHtml += `<option value="999" selected>999</option>`;
+             } else if (currentIndexValue > N && currentIndexValue < 999 && !indexOptionsHtml.includes(`value="${currentIndexValue}"`)){
                   indexOptionsHtml += `<option value="${currentIndexValue}" selected>${currentIndexValue}</option>`;
              }
         }
 
+
         if (isAdmin) {
+             // Define se os campos estarão desabilitados
+             // Permitimos editar o Responsável para todos os admins (ou só criador/Bruno?) - Vamos permitir para todos por enquanto.
+             // Permitimos editar o Índice para todos os admins? Sim.
+             const fieldsDisabled = !canEditRow ? 'disabled' : '';
+             const indexDisabled = ''; // Índice sempre editável por admins? Sim.
+             const responsavelDisabled = ''; // Responsável sempre editável por admins? Sim.
+
+
             tr.innerHTML = `
                 <td>${p.nome}</td>
-                <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option><option value="Infraestrutura" ${p.responsavel === 'Infraestrutura' ? 'selected' : ''}>Infraestrutura</option><option value="Suporte" ${p.responsavel === 'Suporte' ? 'selected' : ''}>Suporte</option></select></td>
-                <td><input type="text" data-column="chamado" value="${p.chamado||''}"/></td>
-                <td><input type="text" data-column="solicitante" value="${p.solicitante||''}"/></td>
-                <td><textarea data-column="situacao">${p.situacao||''}</textarea></td>
-                <td><input type="date" data-column="prazo" value="${p.prazo||''}" /></td>
-                <td><select data-column="prioridade"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
-                <td>
-                   <select data-column="priority_index" style="width: 70px; text-align: center;">
-                       ${indexOptionsHtml}
-                   </select>
-                </td>
-                <td><input type="text" data-column="priorizado" value="${p.priorizado||''}"/></td>
+                <td><select data-column="responsavel" ${responsavelDisabled}><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option><option value="Infraestrutura" ${p.responsavel === 'Infraestrutura' ? 'selected' : ''}>Infraestrutura</option><option value="Suporte" ${p.responsavel === 'Suporte' ? 'selected' : ''}>Suporte</option></select></td>
+                <td><input type="text" data-column="chamado" value="${p.chamado||''}" ${fieldsDisabled}/></td>
+                <td><input type="text" data-column="solicitante" value="${p.solicitante||''}" ${fieldsDisabled}/></td>
+                <td><textarea data-column="situacao" ${fieldsDisabled}>${p.situacao||''}</textarea></td>
+                <td><input type="date" data-column="prazo" value="${p.prazo||''}" ${fieldsDisabled}/></td>
+                <td><select data-column="prioridade" ${fieldsDisabled}><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
+                <td><select data-column="priority_index" style="width: 70px; text-align: center;" ${indexDisabled}>${indexOptionsHtml}</select></td>
+                <td><input type="text" data-column="priorizado" value="${p.priorizado||''}" ${fieldsDisabled}/></td>
                 <td>
                     <div style="display: flex; flex-direction: column; gap: 5px; align-items: center;">
-                        <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Salvar</button>
-                        <button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Excluir</button>
-                    </div>
+                        <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;" ${!canEditRow && !indexDisabled && !responsavelDisabled ? 'disabled' : ''}>Salvar</button> <button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;" ${!isOwner ? 'disabled' : ''}>Excluir</button> </div>
                 </td>`;
         } else {
-            tr.innerHTML = `<td>${p.nome||''}</td><td>${p.chamado||''}</td><td>${p.responsavel||''}</td><td>${p.solicitante||''}</td><td>${p.situacao||''}</td><td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td><td>${p.prioridade||''}</td><td>${p.priority_index ?? ''}</td><td>${p.priorizado||''}</td><td></td>`;
+            tr.innerHTML = `<td>${p.nome||''}</td><td>${p.responsavel||''}</td><td>${p.chamado||''}</td><td>${p.solicitante||''}</td><td>${p.situacao||''}</td><td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td><td>${p.prioridade||''}</td><td>${p.priority_index ?? ''}</td><td>${p.priorizado||''}</td><td></td>`;
         }
         projectListTbody.appendChild(tr);
     });
+     console.log("Renderização da tabela concluída.");
 }
 
+// ... (Restante das funções: adicionarProjeto, salvarAlteracoesProjeto, deletarProjeto, setupFiltros, PONTO DE PARTIDA)
+// NENHUMA ALTERAÇÃO NECESSÁRIA NELAS PARA ESTA FUNCIONALIDADE
 async function adicionarProjeto(event) {
     event.preventDefault();
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (!user) return alert('Sessão expirada.');
 
     const form = event.target;
+    // Mantém 'prioridade', usa default DB para 'priority_index'
     const formData = {
         nome: form.querySelector('#form-nome').value,
         chamado: form.querySelector('#form-chamado').value,
@@ -221,37 +233,56 @@ async function adicionarProjeto(event) {
         prazo: form.querySelector('#form-prazo').value || null,
         responsavel: form.querySelector('#form-responsavel').value,
         solicitante: form.querySelector('#form-solicitante').value,
-        prioridade: form.querySelector('#form-prioridade').value,
+        prioridade: form.querySelector('#form-prioridade').value, // Mantido
         priorizado: form.querySelector('#form-priorizado').value,
         user_id: user.id
     };
 
     if (!formData.nome) { alert('O nome do projeto é obrigatório.'); return; }
     const { error } = await supabaseClient.from('projetos').insert([formData]);
-    if (error) { console.error(error); alert('Falha ao adicionar projeto.'); } else { form.reset(); carregarProjetos(true); }
+    if (error) { console.error("Erro ao adicionar projeto:", error); alert('Falha ao adicionar projeto.'); }
+    else { form.reset(); carregarProjetos(true); }
 }
 
 async function salvarAlteracoesProjeto(id, buttonElement) {
     const tr = document.querySelector(`tr[data-project-id='${id}']`);
     if (!tr) return;
 
+    // Verifica se o botão está realmente habilitado antes de prosseguir
+    if (buttonElement.disabled) {
+        console.warn("Tentativa de salvar com botão desabilitado.");
+        return;
+    }
+
+
     buttonElement.disabled = true; buttonElement.textContent = 'Salvando...'; tr.style.opacity = '0.7';
 
     const updateData = {};
-    const fields = tr.querySelectorAll('[data-column]');
+    const fields = tr.querySelectorAll('[data-column]:not(:disabled)'); // Pega apenas campos habilitados
 
     fields.forEach(field => {
         const coluna = field.getAttribute('data-column');
         let valor = field.value;
-        
+
+        // Trata índice (usa 999 se inválido/vazio)
         if (coluna === 'priority_index') {
             valor = parseInt(valor, 10);
-            if (isNaN(valor) || valor === null || valor === '') valor = null;
+            if (isNaN(valor) || valor === null || valor === '') valor = 999; // Usa 999 como fallback
         }
         if (field.type === 'date' && !valor) { valor = null; }
         updateData[coluna] = valor;
     });
 
+     // Se não houver dados para atualizar (talvez só campos desabilitados foram 'alterados'), não faz a chamada
+    if (Object.keys(updateData).length === 0) {
+        console.log("Nenhum campo editável alterado para salvar.");
+        buttonElement.disabled = false; buttonElement.textContent = 'Salvar'; tr.style.opacity = '1';
+        // Poderia adicionar um feedback visual rápido aqui
+        return;
+    }
+
+
+    console.log("Salvando alterações:", updateData); // Log
     const { error } = await supabaseClient.from('projetos').update(updateData).eq('id', id);
 
     buttonElement.disabled = false; buttonElement.textContent = 'Salvar'; tr.style.opacity = '1';
@@ -261,14 +292,31 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
         alert(`Falha ao salvar as alterações do projeto.`);
         tr.style.outline = '2px solid red'; setTimeout(() => { tr.style.outline = ''; }, 2000);
     } else {
+        console.log("Alterações salvas com sucesso!"); // Log
         tr.style.outline = '2px solid lightgreen'; setTimeout(() => { tr.style.outline = ''; }, 1500);
-        if (updateData.hasOwnProperty('priority_index') || updateData.hasOwnProperty('prioridade')) {
+        // Recarrega se o índice foi alterado (para reordenar)
+        if (updateData.hasOwnProperty('priority_index')) {
+            console.log("Índice alterado, recarregando tabela para reordenar."); // Log
             carregarProjetos(true);
         }
     }
 }
 
 async function deletarProjeto(id, nome) {
+    // Adiciona verificação se o usuário logado é o dono antes do confirm
+    if (!usuarioLogado || !id) return;
+    const { data: projectOwner, error: ownerError } = await supabaseClient
+        .from('projetos')
+        .select('user_id')
+        .eq('id', id)
+        .single();
+
+     if (ownerError || !projectOwner || projectOwner.user_id !== usuarioLogado.id) {
+         alert("Você só pode excluir projetos que você mesmo criou.");
+         return;
+     }
+
+
     if (confirm(`Tem certeza que deseja excluir o projeto "${nome}"?`)) {
         const { error } = await supabaseClient.from('projetos').delete().eq('id', id);
         if (error) { console.error('Erro ao deletar projeto:', error); alert('Falha ao excluir o projeto.'); }
@@ -276,12 +324,13 @@ async function deletarProjeto(id, nome) {
     }
 }
 
+// Funções expostas globalmente
 window.deletarProjeto = deletarProjeto;
 window.salvarAlteracoesProjeto = salvarAlteracoesProjeto;
 
 function setupFiltros() {
     const botoes = document.querySelectorAll('.filter-btn');
-     if(botoes.length > 0) {
+    if (botoes.length > 0) {
         botoes.forEach(botao => {
             if (botao.dataset.listenerAttached !== 'true') {
                  botao.addEventListener('click', () => {
@@ -299,31 +348,38 @@ function setupFiltros() {
     }
 }
 
+// 6. PONTO DE PARTIDA DA APLICAÇÃO
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("DOM Carregado. Configurando listeners e verificando sessão...");
     setupAuthListeners();
     setupFiltros();
 
-    const { data: { session: initialSession } } = await supabaseClient.auth.getSession();
-    currentUserId = initialSession?.user?.id ?? null;
-    if (initialSession && initialSession.user) {
-        console.log('Initial load: User is logged in.');
-        await entrarModoAdmin(initialSession.user);
-    } else {
-        console.log('Initial load: User is logged out.');
-        entrarModoPublico();
+    try {
+        const { data: { session: initialSession }, error: sessionError } = await supabaseClient.auth.getSession();
+        if (sessionError) throw sessionError;
+        currentUserId = initialSession?.user?.id ?? null;
+        console.log('Sessão inicial verificada:', currentUserId ? 'Logado' : 'Deslogado');
+        if (initialSession && initialSession.user) {
+            await entrarModoAdmin(initialSession.user);
+        } else {
+            entrarModoPublico();
+        }
+        initialLoadComplete = true;
+        setupFiltros();
+    } catch (e) {
+         console.error("Erro CRÍTICO na verificação inicial da sessão:", e);
+         currentUserId = null;
+         entrarModoPublico();
+         setupFiltros();
+         initialLoadComplete = true;
     }
-    initialLoadComplete = true;
-    setupFiltros();
 
     supabaseClient.auth.onAuthStateChange(async (_event, session) => {
-        if (_event === 'INITIAL_SESSION') {
-            console.log('Auth event: INITIAL_SESSION ignored.');
-            return;
-        }
+        if (_event === 'INITIAL_SESSION') { return; } // Ignora INITIAL_SESSION
+        console.log("onAuthStateChange Evento:", _event, "Session:", session ? "Exists" : "Null");
         const newUserId = session?.user?.id ?? null;
         if (newUserId !== currentUserId) {
-            console.log('Auth state changed:', _event, ' New user ID:', newUserId);
+            console.log('Mudança de usuário detectada, recarregando UI.');
             currentUserId = newUserId;
             if (session && session.user) {
                 await entrarModoAdmin(session.user);
@@ -332,7 +388,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             setupFiltros();
         } else {
-            console.log('Auth state event ignored (user unchanged):', _event);
+            console.log('onAuthStateChange: Evento ignorado (usuário não mudou). Event:', _event);
         }
     });
 });
