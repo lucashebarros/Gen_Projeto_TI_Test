@@ -1,3 +1,18 @@
+const emailResponsavelMap = {
+    'lucasbarros@garbuio.com.br': 'BI',
+    'guilhermemachancoses@garbuio.com.br': 'Sistema',
+    'joaocosta@garbuio.com.br': 'Suporte',
+    'lucaslembis@garbuio.com.br': 'Infraestrutura',
+    'brunorissio@garbuio.com.br': null // Valor null indica que ele pode escolher
+};
+// =============================================================
+
+let filtroAtual = 'Todos';
+let usuarioLogado = null;
+let currentUserId = null;
+let initialLoadComplete = false;
+
+
 const SUPABASE_URL = 'https://rprwkinapuwsdpiifrdl.supabase.co';
 
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwcndraW5hcHV3c2RwaWlmcmRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyMDQ4NjAsImV4cCI6MjA3Mzc4MDg2MH0.enGl5j313BI8cMxe6soGhViHd6667z8usxtJXPR2F9k';
@@ -40,26 +55,28 @@ function setupAuthListeners() {
 }
 async function logout() { await supabaseClient.auth.signOut(); }
 
+
+
 async function entrarModoAdmin(user) {
-    usuarioLogado = user;
+    console.log("Entrando no Modo Admin para:", user.email);
+    usuarioLogado = user; 
     authContainer.classList.add('hidden');
     let displayName = user.email;
     try {
-        const { data: profile, error } = await supabaseClient.from('profiles').select('full_name').eq('id', user.id).single();
-        if (error && error.code !== 'PGRST116') { console.error("Erro perfil:", error); }
+        const { data: profile } = await supabaseClient.from('profiles').select('full_name').eq('id', user.id).single();
         displayName = profile?.full_name || user.email;
     } catch (e) { console.error("Exceção ao buscar perfil:", e); }
-    
+
     headerAuthSection.innerHTML = `<span>Olá, ${displayName}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
     const logoutButton = document.getElementById('logout-button');
-    logoutButton?.removeEventListener('click', logout); 
+    logoutButton?.removeEventListener('click', logout);
     logoutButton?.addEventListener('click', logout);
 
     formWrapper.innerHTML = `
         <div id="form-container" style="margin-bottom: 2rem; background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
             <form id="add-project-form" style="display: flex; flex-wrap: wrap; row-gap: 1.2rem; column-gap: 2rem;">
-                 <div style="flex: 2 1 60%;"><label for="form-nome">Nome do Projeto:</label><input type="text" id="form-nome" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
+                <div style="flex: 2 1 60%;"><label for="form-nome">Nome do Projeto:</label><input type="text" id="form-nome" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
                 <div style="flex: 1 1 30%;"><label for="form-responsavel">Responsável:</label><select id="form-responsavel" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"><option value="Sistema">Sistema</option><option value="BI">BI</option><option value="Infraestrutura">Infraestrutura</option><option value="Suporte">Suporte</option></select></div>
                 <div style="flex: 1 1 30%;"><label for="form-chamado">Nº do Chamado:</label><input type="text" id="form-chamado" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
                 <div style="flex: 1 1 30%;"><label for="form-solicitante">Solicitante:</label><input type="text" id="form-solicitante" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
@@ -70,6 +87,13 @@ async function entrarModoAdmin(user) {
                 <div style="flex: 1 1 100%;"><button type="submit" style="background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;">Salvar Novo Projeto</button></div>
             </form>
         </div>`;
+
+    const defaultResponsavel = emailResponsavelMap[user.email];
+    const responsavelSelect = document.getElementById('form-responsavel');
+    if (responsavelSelect && defaultResponsavel !== null) { 
+        responsavelSelect.value = defaultResponsavel;
+
+    }
      const addForm = document.getElementById('add-project-form');
      if (addForm && !addForm.dataset.listenerAttached) {
          addForm.addEventListener('submit', adicionarProjeto);
@@ -77,9 +101,8 @@ async function entrarModoAdmin(user) {
      }
 
     if (actionsHeader) actionsHeader.style.display = 'table-cell';
-    await carregarProjetos(true);
+    await carregarProjetos(true); 
 }
-
 function entrarModoPublico() {
     usuarioLogado = null;
     headerAuthSection.innerHTML = `<button id="login-button">Admin / Login</button>`;
