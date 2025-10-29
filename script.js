@@ -1,5 +1,3 @@
-
-
 const SUPABASE_URL = 'https://rprwkinapuwsdpiifrdl.supabase.co';
 
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwcndraW5hcHV3c2RwaWlmcmRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyMDQ4NjAsImV4cCI6MjA3Mzc4MDg2MH0.enGl5j313BI8cMxe6soGhViHd6667z8usxtJXPR2F9k';
@@ -15,8 +13,8 @@ const formWrapper = document.getElementById('form-wrapper');
 const actionsHeader = document.getElementById('actions-header');
 let filtroAtual = 'Todos';
 let usuarioLogado = null;
-let currentUserId = null; // Usado para rastrear mudanças no onAuthStateChange
-let initialLoadComplete = false; // Flag para a lógica do onAuthStateChange
+let currentUserId = null;
+let initialLoadComplete = false; 
 
 function setupAuthListeners() {
     const closeButton = document.getElementById('close-login-button');
@@ -54,7 +52,7 @@ async function entrarModoAdmin(user) {
     
     headerAuthSection.innerHTML = `<span>Olá, ${displayName}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
     const logoutButton = document.getElementById('logout-button');
-    logoutButton?.removeEventListener('click', logout); // Evita duplicar listener
+    logoutButton?.removeEventListener('click', logout); 
     logoutButton?.addEventListener('click', logout);
 
     formWrapper.innerHTML = `
@@ -102,18 +100,16 @@ async function carregarProjetos(isAdmin) {
     if (!projectListTbody) { console.error("tbody#project-list não encontrado!"); return; }
     projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Carregando projetos...</td></tr>`;
 
-    // 1. Busca o TOTAL de projetos para saber o N do select de ÍNDICE
-    // Usamos 'rpc' para chamar uma função que conta apenas os projetos do filtro, se houver
     let N = 0;
     try {
         let countQuery = supabaseClient.from('projetos').select('*', { count: 'exact', head: true });
         if (filtroAtual !== 'Todos') {
-            countQuery = countQuery.eq('responsavel', filtroAtual); // Conta apenas os filtrados
+            countQuery = countQuery.eq('responsavel', filtroAtual); 
         }
         const { count: totalProjectCount, error: countError } = await countQuery;
         
         if (countError) throw countError;
-        N = totalProjectCount > 0 ? totalProjectCount : 1; // Garante pelo menos 1
+        N = totalProjectCount > 0 ? totalProjectCount : 1; 
     } catch (e) {
         console.error("Erro ao contar projetos (pode afetar o select de índice):", e);
         const { count: fallbackCount } = await supabaseClient.from('projetos').select('*', { count: 'exact', head: true });
