@@ -1,18 +1,3 @@
-const emailResponsavelMap = {
-    'lucasbarros@garbuio.com.br': 'BI',
-    'guilhermemachancoses@garbuio.com.br': 'Sistema',
-    'joaocosta@garbuio.com.br': 'Suporte',
-    'lucaslembis@garbuio.com.br': 'Infraestrutura',
-    'brunorissio@garbuio.com.br': null // Valor null indica que ele pode escolher
-};
-// =============================================================
-
-let filtroAtual = 'Todos';
-let usuarioLogado = null;
-let currentUserId = null;
-let initialLoadComplete = false;
-
-
 const SUPABASE_URL = 'https://rprwkinapuwsdpiifrdl.supabase.co';
 
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwcndraW5hcHV3c2RwaWlmcmRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyMDQ4NjAsImV4cCI6MjA3Mzc4MDg2MH0.enGl5j313BI8cMxe6soGhViHd6667z8usxtJXPR2F9k';
@@ -26,6 +11,16 @@ const authForm = document.getElementById('auth-form');
 const headerAuthSection = document.getElementById('header-auth-section');
 const formWrapper = document.getElementById('form-wrapper');
 const actionsHeader = document.getElementById('actions-header');
+
+const emailResponsavelMap = {
+    'lucasbarros@garbuio.com.br': 'BI',
+    'guilhermemachancoses@garbuio.com.br': 'Sistema',
+    'joaocosta@garbuio.com.br': 'Suporte',
+    'lucaslembis@garbuio.com.br': 'Infraestrutura',
+    'brunorissio@garbuio.com.br': null 
+};
+
+
 let filtroAtual = 'Todos';
 let usuarioLogado = null;
 let currentUserId = null;
