@@ -20,23 +20,19 @@ const formWrapper = document.getElementById('form-wrapper');
 const actionsHeader = document.getElementById('actions-header');
 let filtroAtual = 'Todos';
 let usuarioLogado = null;
-let currentUserId = null; // Mantém para a lógica do onAuthStateChange
-let initialLoadComplete = false; // Mantém para a lógica do onAuthStateChange
+let currentUserId = null; 
+let initialLoadComplete = false; 
 
-// ===== MAPEAMENTO EMAIL -> RESPONSÁVEL (JÁ EXISTENTE) =====
 const emailResponsavelMap = {
     'lucasbarros@garbuio.com.br': 'BI',
     'guilhermemachancoses@garbuio.com.br': 'Sistema',
     'joaocosta@garbuio.com.br': 'Suporte',
     'lucaslembis@garbuio.com.br': 'Infraestrutura',
-    'brunorissio@garbuio.com.br': null // Valor null indica que ele pode escolher (ou não é um responsável fixo?)
+    'brunorissio@garbuio.com.br': null 
 };
-// =============================================================
 
 
-// 3. Funções e Lógica de Autenticação
 function setupAuthListeners() {
-    // Garante listeners únicos
     const closeButton = document.getElementById('close-login-button');
     if (closeButton && !closeButton.dataset.listenerAttached) {
         closeButton.addEventListener('click', () => { authContainer.classList.add('hidden'); });
@@ -54,16 +50,14 @@ function setupAuthListeners() {
                  alert(error.message);
                  button.disabled = false; button.textContent = 'Entrar';
             }
-            // UI recarrega via onAuthStateChange
-        });
+       });
         authForm.dataset.listenerAttached = 'true';
     }
 }
 async function logout() { await supabaseClient.auth.signOut(); }
 
-// 4. Lógica de Controle de Estado (Admin vs. Público)
 async function entrarModoAdmin(user) {
-    console.log("Entrando Modo Admin..."); // Log
+    console.log("Entrando Modo Admin..."); 
     usuarioLogado = user;
     authContainer.classList.add('hidden');
     let displayName = user.email;
@@ -75,10 +69,9 @@ async function entrarModoAdmin(user) {
 
     headerAuthSection.innerHTML = `<span>Olá, ${displayName}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
     const logoutButton = document.getElementById('logout-button');
-    logoutButton?.removeEventListener('click', logout); // Evita duplicar listener
+    logoutButton?.removeEventListener('click', logout); 
     logoutButton?.addEventListener('click', logout);
 
-    // Formulário de Adição (IDÊNTICO AO SEU FUNCIONAL, COM VALOR PADRÃO RESPONSÁVEL)
     formWrapper.innerHTML = `
         <div id="form-container" style="margin-bottom: 2rem; background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
@@ -95,7 +88,6 @@ async function entrarModoAdmin(user) {
             </form>
         </div>`;
 
-     // --- LÓGICA DO VALOR PADRÃO ---
      const defaultResponsavel = emailResponsavelMap[user.email];
      const responsavelSelect = document.getElementById('form-responsavel');
      if (responsavelSelect) {
@@ -105,10 +97,10 @@ async function entrarModoAdmin(user) {
             if (user.email !== 'brunorissio@garbuio.com.br') {
                 responsavelSelect.disabled = true;
             } else {
-                 responsavelSelect.disabled = false; // Garante que esteja habilitado para o Bruno
+                 responsavelSelect.disabled = false; 
             }
         } else {
-             responsavelSelect.disabled = false; // Habilitado para o Bruno
+             responsavelSelect.disabled = false;
         }
      }
      // --- FIM DA LÓGICA DO VALOR PADRÃO ---
@@ -192,19 +184,16 @@ async function carregarProjetos(isAdmin) {
 
             tr.innerHTML = `
                 <td>${p.nome}</td>
-                {/* O select de Responsável fica sempre habilitado para admins? Ou só Bruno/Criador? Vamos deixar habilitado para todos os admins por enquanto */}
                 <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option><option value="Infraestrutura" ${p.responsavel === 'Infraestrutura' ? 'selected' : ''}>Infraestrutura</option><option value="Suporte" ${p.responsavel === 'Suporte' ? 'selected' : ''}>Suporte</option></select></td>
                 <td><input type="text" data-column="chamado" value="${p.chamado||''}" ${fieldsDisabled}/></td>
                 <td><input type="text" data-column="solicitante" value="${p.solicitante||''}" ${fieldsDisabled}/></td>
                 <td><textarea data-column="situacao" ${fieldsDisabled}>${p.situacao||''}</textarea></td>
                 <td><input type="date" data-column="prazo" value="${p.prazo||''}" ${fieldsDisabled}/></td>
                 <td><select data-column="prioridade" ${fieldsDisabled}><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
-                {/* O Índice fica sempre habilitado para admins? Sim. */}
                 <td><input type="number" data-column="priority_index" value="${p.priority_index===null ? '' : p.priority_index}" style="width: 60px; text-align: center;"/></td>
                 <td><input type="text" data-column="priorizado" value="${p.priorizado||''}" ${fieldsDisabled}/></td>
                 <td>
                     <div style="display: flex; flex-direction: column; gap: 5px; align-items: center;">
-                        {/* Aplica o 'disabled' aos botões */}
                         <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;" ${saveDisabled}>Salvar</button>
                         <button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;" ${deleteDisabled}>Excluir</button>
                     </div>
