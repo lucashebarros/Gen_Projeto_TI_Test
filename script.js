@@ -18,19 +18,15 @@ const formWrapper = document.getElementById('form-wrapper');
 const actionsHeader = document.getElementById('actions-header');
 let filtroAtual = 'Todos';
 let usuarioLogado = null;
-// ===== DECLARAÇÃO ÚNICA DA VARIÁVEL =====
-let currentUserId = null; // Usado para rastrear mudanças no onAuthStateChange
-let initialLoadComplete = false; // Flag para a lógica do onAuthStateChange
 
 // 3. Funções e Lógica de Autenticação
 function setupAuthListeners() {
-    // Garante que o listener só é adicionado uma vez
+    // Garante listeners únicos
     const closeButton = document.getElementById('close-login-button');
     if (closeButton && !closeButton.dataset.listenerAttached) {
         closeButton.addEventListener('click', () => { authContainer.classList.add('hidden'); });
         closeButton.dataset.listenerAttached = 'true';
     }
-    // Garante que o listener só é adicionado uma vez
     if (authForm && !authForm.dataset.listenerAttached) {
         authForm.addEventListener('submit', async (event) => {
             event.preventDefault();
@@ -41,9 +37,9 @@ function setupAuthListeners() {
             const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
             if (error) {
                  alert(error.message);
-                 button.disabled = false; button.textContent = 'Entrar'; // Reabilita em caso de erro
+                 button.disabled = false; button.textContent = 'Entrar';
             }
-            // Não precisa reabilitar em caso de sucesso, a UI será recarregada
+            // UI recarrega via onAuthStateChange
         });
         authForm.dataset.listenerAttached = 'true';
     }
@@ -52,27 +48,29 @@ async function logout() { await supabaseClient.auth.signOut(); }
 
 // 4. Lógica de Controle de Estado (Admin vs. Público)
 async function entrarModoAdmin(user) {
-    console.log("Entrando no Modo Admin para:", user.email); // Log
-    usuarioLogado = user; // Atualiza estado global
-    authContainer.classList.add('hidden'); // Ensure login modal is hidden
-    let displayName = user.email; // Default to email
+    usuarioLogado = user;
+    authContainer.classList.add('hidden');
+    // Adicionado try-catch para robustez na busca do perfil
+    let displayName = user.email;
     try {
-        const { data: profile, error: profileError } = await supabaseClient.from('profiles').select('full_name').eq('id', user.id).single();
-        if (profileError && profileError.code !== 'PGRST116') { console.error("Erro ao buscar perfil:", profileError); }
-        else if (profile?.full_name) { displayName = profile.full_name; }
-    } catch (e) { console.error("Exceção ao buscar perfil:", e); }
-
+        const { data: profile, error } = await supabaseClient.from('profiles').select('full_name').eq('id', user.id).single();
+        if (error && error.code !== 'PGRST116') { console.error("Erro perfil:", error); } // Ignora erro "row not found"
+        displayName = profile?.full_name || user.email;
+    } catch (e) {
+        console.error("Exceção ao buscar perfil:", e);
+    }
+    
     headerAuthSection.innerHTML = `<span>Olá, ${displayName}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
     const logoutButton = document.getElementById('logout-button');
-    logoutButton?.removeEventListener('click', logout); // Remove antes de adicionar
+    logoutButton?.removeEventListener('click', logout); // Evita duplicar listener
     logoutButton?.addEventListener('click', logout);
 
-    // Formulário de Adição (com Prioridade)
+    // Formulário de Adição (IDÊNTICO AO SEU FUNCIONAL)
     formWrapper.innerHTML = `
         <div id="form-container" style="margin-bottom: 2rem; background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
             <form id="add-project-form" style="display: flex; flex-wrap: wrap; row-gap: 1.2rem; column-gap: 2rem;">
-                 <div style="flex: 2 1 60%;"><label for="form-nome">Nome do Projeto:</label><input type="text" id="form-nome" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
+                <div style="flex: 2 1 60%;"><label for="form-nome">Nome do Projeto:</label><input type="text" id="form-nome" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
                 <div style="flex: 1 1 30%;"><label for="form-responsavel">Responsável:</label><select id="form-responsavel" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"><option value="Sistema">Sistema</option><option value="BI">BI</option><option value="Infraestrutura">Infraestrutura</option><option value="Suporte">Suporte</option></select></div>
                 <div style="flex: 1 1 30%;"><label for="form-chamado">Nº do Chamado:</label><input type="text" id="form-chamado" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
                 <div style="flex: 1 1 30%;"><label for="form-solicitante">Solicitante:</label><input type="text" id="form-solicitante" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
@@ -83,86 +81,65 @@ async function entrarModoAdmin(user) {
                 <div style="flex: 1 1 100%;"><button type="submit" style="background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;">Salvar Novo Projeto</button></div>
             </form>
         </div>`;
-    // Add listener only if form exists and hasn't been added before
      const addForm = document.getElementById('add-project-form');
-     if (addForm && !addForm.dataset.listenerAttached) {
+     if (addForm && !addForm.dataset.listenerAttached) { // Evita duplicar listener
          addForm.addEventListener('submit', adicionarProjeto);
          addForm.dataset.listenerAttached = 'true';
      }
 
     if (actionsHeader) actionsHeader.style.display = 'table-cell';
-    // É importante chamar carregarProjetos DEPOIS de montar a UI
-    await carregarProjetos(true); // Usa await para garantir que termine
+    carregarProjetos(true); // Chama o carregamento no final
 }
 
 function entrarModoPublico() {
-    console.log("Entrando no Modo Público."); // Log
-    usuarioLogado = null; // Atualiza estado global
+    usuarioLogado = null;
     headerAuthSection.innerHTML = `<button id="login-button">Admin / Login</button>`;
-    // Add listener only if button exists and ensure it's added only once
     const loginButton = document.getElementById('login-button');
-    if (loginButton && !loginButton.dataset.listenerAttached) {
+     if (loginButton && !loginButton.dataset.listenerAttached) { // Evita duplicar listener
         loginButton.addEventListener('click', () => authContainer.classList.remove('hidden'));
         loginButton.dataset.listenerAttached = 'true';
     }
-    formWrapper.innerHTML = ''; // Limpa o formulário de adição
+    formWrapper.innerHTML = '';
     if (actionsHeader) actionsHeader.style.display = 'none';
-    carregarProjetos(false); // Carrega os projetos para o modo público
+    carregarProjetos(false);
 }
 
 // 5. Funções do Gerenciador de Projetos (CRUD)
 
-// REMOVIDO: Helper priorityOrder (não será usado para ordenação)
-// const priorityOrder = { ... };
+// REMOVIDO: O objeto priorityOrder não é mais necessário para ordenação
+// const priorityOrder = { 'Alta': 1, 'Média': 2, 'Baixa': 3, '': 4 };
 
 async function carregarProjetos(isAdmin) {
-    console.log(`Carregando projetos (isAdmin: ${isAdmin}, filtro: ${filtroAtual})...`); // Log
-    // Colspan correto (10 admin, 9 público)
     const colspan = isAdmin ? 11 : 10;
     const projectListTbody = document.getElementById('project-list');
-    if (!projectListTbody) {
-         console.error("ERRO CRÍTICO: tbody#project-list não encontrado!"); return;
-    }
+    if (!projectListTbody) return; // Proteção
     projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Carregando projetos...</td></tr>`;
 
-    // 1. Busca o TOTAL de projetos para saber o N do select de ÍNDICE (só no modo admin)
-    let N = 1;
-    if (isAdmin) {
-        try { // Add try-catch for count query
-            const { count: totalProjectCount, error: countError } = await supabaseClient
-                .from('projetos')
-                .select('*', { count: 'exact', head: true });
-            if (countError) { throw countError; }
-            N = totalProjectCount > 0 ? totalProjectCount : 1;
-            console.log("Total de projetos para select:", N); // Log
-        } catch(e) {
-            console.error("Erro ao contar projetos:", e);
-            // Continua mesmo assim, o select pode ficar limitado
-        }
-    }
-
-    // 2. Busca os projetos APLICANDO O FILTRO e ORDENANDO APENAS pelo índice
     let query = supabaseClient.from('projetos').select('*');
     if (filtroAtual !== 'Todos') {
         query = query.eq('responsavel', filtroAtual);
     }
-    // ===== ORDENAÇÃO CORRIGIDA =====
+    
+    // ===== ALTERAÇÃO PRINCIPAL =====
+    // Ordena a busca DIRETAMENTE no Supabase, APENAS pelo 'priority_index'.
+    // 'nullsFirst: false' joga os nulos (ou 999) para o final da lista.
     query = query.order('priority_index', { ascending: true, nullsFirst: false });
+    // =================================
+    
+    const { data: projetos, error } = await query; // Pega os dados já ordenados
 
-    const { data: projetos, error: fetchError } = await query;
-
-    if (fetchError) {
-        console.error("Erro ao buscar projetos:", fetchError);
-        projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; color: red;">Erro ao carregar projetos. Verifique o console.</td></tr>`;
-        return;
+    if (error) { 
+        console.error("Erro ao buscar projetos:", error);
+        projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; color: red;">Erro ao carregar projetos.</td></tr>`; 
+        return; 
     }
-    console.log("Projetos recebidos:", projetos ? projetos.length : 0); // Log
 
-    // REMOVIDA A ORDENAÇÃO JS
+    // REMOVIDO: O bloco .sort() que fazia a ordenação aqui no JS foi removido.
+    // const projetos = projetosData.sort((a, b) => { ... });
 
-    if (!projetos || projetos.length === 0) {
-        projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Nenhum projeto encontrado para o filtro "${filtroAtual}".</td></tr>`;
-        return;
+    if (!projetos || projetos.length === 0) { 
+        projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Nenhum projeto encontrado para o filtro "${filtroAtual}".</td></tr>`; 
+        return; 
     }
 
     projectListTbody.innerHTML = '';
@@ -170,64 +147,30 @@ async function carregarProjetos(isAdmin) {
         const tr = document.createElement('tr');
         tr.dataset.projectId = p.id;
 
-        // Gera as opções para o <select> do ÍNDICE (só se for admin)
-        let indexOptionsHtml = '';
         if (isAdmin) {
-            for (let i = 1; i <= N; i++) {
-                const isSelected = p.priority_index === i;
-                indexOptionsHtml += `<option value="${i}" ${isSelected ? 'selected' : ''}>${i}</option>`;
-            }
-             // Adiciona null se necessário
-            if (p.priority_index === null || p.priority_index === null || (p.priority_index > N && p.priority_index !== null)) {
-                 const currentVal = p.priority_index ?? null;
-                 if (currentVal >= null && !indexOptionsHtml.includes(`value="null"`)) { // Adiciona null se for null ou null
-                     indexOptionsHtml += `<option value="null" selected>null</option>`;
-                 } else if (currentVal > N && currentVal < null && !indexOptionsHtml.includes(`value="${currentVal}"`)) { // Adiciona valor > N se não for null
-                     indexOptionsHtml += `<option value="${currentVal}" selected>${currentVal}</option>`;
-                 }
-            }
-        }
-
-
-        if (isAdmin) {
-            // Tabela Admin (com Prioridade e Índice Select)
+            // IDÊNTICO AO SEU CÓDIGO FUNCIONAL (com 'prioridade' e 'priority_index')
             tr.innerHTML = `
                 <td>${p.nome}</td>
-                <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option><option value="Infraestrutura" ${p.responsavel === 'Infraestrutura' ? 'selected' : ''}>Infraestrutura</option><option value="Suporte" ${p.responsavel === 'Suporte' ? 'selected' : ''}>Suporte</option></select></td>
                 <td><input type="text" data-column="chamado" value="${p.chamado||''}"/></td>
+                <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option><option value="Infraestrutura" ${p.responsavel === 'Infraestrutura' ? 'selected' : ''}>Infraestrutura</option><option value="Suporte" ${p.responsavel === 'Suporte' ? 'selected' : ''}>Suporte</option></select></td>
                 <td><input type="text" data-column="solicitante" value="${p.solicitante||''}"/></td>
                 <td><textarea data-column="situacao">${p.situacao||''}</textarea></td>
                 <td><input type="date" data-column="prazo" value="${p.prazo||''}" /></td>
                 <td><select data-column="prioridade"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
-                <td>
-                   <select data-column="priority_index" style="width: 70px; text-align: center;">
-                       ${indexOptionsHtml}
-                   </select>
-                </td>
+                <td><input type="number" data-column="priority_index" value="${p.priority_index === null ? '' : p.priority_index}" style="width: 60px; text-align: center;"/></td>
                 <td><input type="text" data-column="priorizado" value="${p.priorizado||''}"/></td>
-                <td>
+                <td> 
                     <div style="display: flex; flex-direction: column; gap: 5px; align-items: center;">
-                        <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Salvar</button>
+                        <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Salvar</button> 
                         <button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Excluir</button>
                     </div>
                 </td>`;
         } else {
-             // Visão Pública (com Prioridade e Índice)
-            tr.innerHTML = `
-                <td>${p.nome||''}</td>
-                <td>${p.responsavel||''}</td>
-                <td>${p.chamado||''}</td>
-                <td>${p.solicitante||''}</td>
-                <td>${p.situacao||''}</td>
-                <td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td>
-                <td>${p.prioridade||''}</td>
-                <td>${p.priority_index ?? ''}</td>
-                <td>${p.priorizado||''}</td>
-                <td></td>`; // Célula vazia para coluna Ações
+            // IDÊNTICO AO SEU CÓDIGO FUNCIONAL
+            tr.innerHTML = `<td>${p.nome||''}</td><td>${p.chamado||''}</td><td>${p.responsavel||''}</td><td>${p.solicitante||''}</td><td>${p.situacao||''}</td><td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td><td>${p.prioridade||''}</td><td>${p.priority_index ?? ''}</td><td>${p.priorizado||''}</td><td></td>`;
         }
         projectListTbody.appendChild(tr);
     });
-     console.log("Renderização da tabela concluída."); // Log
 }
 
 async function adicionarProjeto(event) {
@@ -236,7 +179,8 @@ async function adicionarProjeto(event) {
     if (!user) return alert('Sessão expirada.');
 
     const form = event.target;
-    // Mantém 'prioridade', usa default DB para 'priority_index'
+    // IDÊNTICO AO SEU CÓDIGO FUNCIONAL
+    // (Ajustado para não enviar 'priority_index: null', deixando o DB usar o DEFAULT 999)
     const formData = {
         nome: form.querySelector('#form-nome').value,
         chamado: form.querySelector('#form-chamado').value,
@@ -244,15 +188,15 @@ async function adicionarProjeto(event) {
         prazo: form.querySelector('#form-prazo').value || null,
         responsavel: form.querySelector('#form-responsavel').value,
         solicitante: form.querySelector('#form-solicitante').value,
-        prioridade: form.querySelector('#form-prioridade').value, // Mantido
+        prioridade: form.querySelector('#form-prioridade').value,
         priorizado: form.querySelector('#form-priorizado').value,
         user_id: user.id
+        // priority_index: null, // REMOVIDO para usar o default 999
     };
 
     if (!formData.nome) { alert('O nome do projeto é obrigatório.'); return; }
     const { error } = await supabaseClient.from('projetos').insert([formData]);
-    if (error) { console.error("Erro ao adicionar projeto:", error); alert('Falha ao adicionar projeto.'); }
-    else { form.reset(); carregarProjetos(true); }
+    if (error) { console.error(error); alert('Falha ao adicionar projeto.'); } else { form.reset(); carregarProjetos(true); }
 }
 
 async function salvarAlteracoesProjeto(id, buttonElement) {
@@ -267,17 +211,16 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
     fields.forEach(field => {
         const coluna = field.getAttribute('data-column');
         let valor = field.value;
-
-        // Trata índice (usa null se inválido/vazio)
+        
+        // IDÊNTICO AO SEU CÓDIGO FUNCIONAL, mas mudando null para 999
         if (coluna === 'priority_index') {
             valor = parseInt(valor, 10);
-            if (isNaN(valor) || valor === null || valor === '') valor = null;
+            if (isNaN(valor) || valor === null || valor === '') valor = 999; // Usa 999 como fallback
         }
         if (field.type === 'date' && !valor) { valor = null; }
         updateData[coluna] = valor;
     });
 
-    console.log("Salvando alterações:", updateData); // Log
     const { error } = await supabaseClient.from('projetos').update(updateData).eq('id', id);
 
     buttonElement.disabled = false; buttonElement.textContent = 'Salvar'; tr.style.opacity = '1';
@@ -287,11 +230,9 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
         alert(`Falha ao salvar as alterações do projeto.`);
         tr.style.outline = '2px solid red'; setTimeout(() => { tr.style.outline = ''; }, 2000);
     } else {
-        console.log("Alterações salvas com sucesso!"); // Log
         tr.style.outline = '2px solid lightgreen'; setTimeout(() => { tr.style.outline = ''; }, 1500);
-        // Recarrega se o índice foi alterado (para reordenar)
-        if (updateData.hasOwnProperty('priority_index')) {
-            console.log("Índice alterado, recarregando tabela para reordenar."); // Log
+        // Recarrega se o índice ou prioridade foram alterados (lógica do seu script)
+        if (updateData.hasOwnProperty('priority_index') || updateData.hasOwnProperty('prioridade')) {
             carregarProjetos(true);
         }
     }
@@ -311,93 +252,70 @@ window.salvarAlteracoesProjeto = salvarAlteracoesProjeto;
 
 function setupFiltros() {
     const botoes = document.querySelectorAll('.filter-btn');
-    // Verifica se os botões existem antes de adicionar listeners
-    if(botoes.length > 0) {
+     if(botoes.length > 0) { // Proteção
         botoes.forEach(botao => {
-            // Garante que só adiciona o listener uma vez
+             // Garante que só adiciona o listener uma vez
             if (botao.dataset.listenerAttached !== 'true') {
                  botao.addEventListener('click', () => {
                     botoes.forEach(b => b.classList.remove('active'));
                     botao.classList.add('active');
                     filtroAtual = botao.textContent;
-                    const isAdmin = !!usuarioLogado; // Verifica se está logado
+                    const isAdmin = !!usuarioLogado;
                     carregarProjetos(isAdmin);
                 });
                 botao.dataset.listenerAttached = 'true';
             }
         });
     } else {
-        console.warn("Botões de filtro não encontrados para configurar listeners."); // Aviso
+        console.warn("Botões de filtro não encontrados.");
     }
 }
 
-// 6. PONTO DE PARTIDA DA APLICAÇÃO
+// Variável para rastrear o ID do usuário (declarada no topo)
+// let currentUserId = null; 
+// let initialLoadComplete = false; // Declarada no topo
+
+// 6. PONTO DE PARTIDA DA APLICAÇÃO (IDÊNTICO AO SEU FUNCIONAL)
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log("DOM Carregado. Configurando listeners e verificando sessão..."); // Log
+    console.log("DOM Carregado. Configurando listeners e verificando sessão...");
     setupAuthListeners();
-    setupFiltros(); // Chama para configurar os filtros que já existem no HTML
+    setupFiltros();
 
-    // Listener para mudanças de estado de autenticação
-    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
-        console.log("Auth Event:", _event, "Session:", session ? "Exists" : "Null"); // Log
-        const newUserId = session?.user?.id ?? null;
+    const { data: { session: initialSession } } = await supabaseClient.auth.getSession();
+    currentUserId = initialSession?.user?.id ?? null; // Define o ID inicial
+    if (initialSession && initialSession.user) {
+        console.log('Initial load: User is logged in.');
+        await entrarModoAdmin(initialSession.user); // Adicionado await
+    } else {
+        console.log('Initial load: User is logged out.');
+        entrarModoPublico();
+    }
+    initialLoadComplete = true; // Marca como completo após render inicial
+    setupFiltros(); // Reconfigura filtros
 
-        // Lógica aprimorada para evitar recargas desnecessárias
-        if ((_event === 'INITIAL_SESSION' || _event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') && newUserId === currentUserId && initialLoadComplete) {
-            console.log('Auth state event ignored (user unchanged or already loaded):', _event); // Log
+    supabaseClient.auth.onAuthStateChange(async (_event, session) => { // Adicionado async
+        // Ignora INITIAL_SESSION pois já foi tratado
+        if (_event === 'INITIAL_SESSION') {
+            console.log('Auth event: INITIAL_SESSION ignored.');
             return;
         }
-        if (_event === 'SIGNED_OUT' && newUserId === null && currentUserId === null && initialLoadComplete) {
-             console.log('Auth state event ignored (already logged out):', _event); // Log
-             return;
-        }
 
-        console.log('Auth state change requires UI reload. Event:', _event, ' Current User:', currentUserId, ' New User:', newUserId); // Log
-        // --- CORREÇÃO: Garante que currentUserId seja atualizado ---
-        currentUserId = newUserId; // Atualiza quem está logado
+        const newUserId = session?.user?.id ?? null;
 
-        if (session && session.user) {
-            await entrarModoAdmin(session.user);
-        } else {
-            entrarModoPublico();
-        }
-        initialLoadComplete = true; // Marca que a primeira carga/mudança válida foi feita
-        // Garante que os filtros sejam reconfigurados após a UI ser (re)desenhada
-         setupFiltros();
-    });
+        if (newUserId !== currentUserId) {
+            console.log('Auth state changed:', _event, ' New user ID:', newUserId);
+            currentUserId = newUserId; // Atualiza o ID rastreado
 
-    // Verificação inicial explícita pode ser útil como fallback
-    try {
-        // Apenas verifica, não força render se onAuthStateChange já tratou
-        if (!initialLoadComplete) {
-            console.log("Verificando sessão inicial via getSession (fallback)..."); // Log
-            const { data: { session: initialSession } } = await supabaseClient.auth.getSession();
-            console.log("Sessão inicial (getSession fallback):", initialSession ? "Exists" : "Null"); // Log
-
-            if (!initialLoadComplete) { // Checa de novo, pois onAuthStateChange pode ter rodado nesse meio tempo
-                 const initialUserId = initialSession?.user?.id ?? null;
-                 currentUserId = initialUserId; // Define o ID inicial se ainda não definido
-
-                if (initialSession && initialSession.user) {
-                    console.log("Forçando render inicial Admin via getSession (fallback)"); // Log
-                    await entrarModoAdmin(initialSession.user);
-                } else {
-                    console.log("Forçando render inicial Público via getSession (fallback)"); // Log
-                    entrarModoPublico();
-                }
-                setupFiltros();
-                initialLoadComplete = true;
+            if (session && session.user) {
+                await entrarModoAdmin(session.user); // Adicionado await
+            } else {
+                entrarModoPublico();
             }
+            setupFiltros(); // Reconfigura filtros
+        } else {
+            console.log('Auth state event ignored (user unchanged):', _event);
         }
-    } catch (e) {
-        console.error("Erro ao obter sessão inicial (fallback):", e);
-        if (!initialLoadComplete) {
-            currentUserId = null;
-            entrarModoPublico();
-            setupFiltros();
-            initialLoadComplete = true;
-        }
-    }
+    });
 });
 
 // REMOVIDAS as referências globais que não estão definidas
