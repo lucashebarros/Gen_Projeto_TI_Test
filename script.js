@@ -186,19 +186,16 @@ async function carregarProjetos(isAdmin) {
 
             tr.innerHTML = `
                 <td>${p.nome}</td>
-                {/* O select de Responsável fica sempre habilitado para admins? Ou só Bruno/Criador? Vamos deixar habilitado para todos os admins por enquanto */}
                 <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option><option value="Infraestrutura" ${p.responsavel === 'Infraestrutura' ? 'selected' : ''}>Infraestrutura</option><option value="Suporte" ${p.responsavel === 'Suporte' ? 'selected' : ''}>Suporte</option></select></td>
                 <td><input type="text" data-column="chamado" value="${p.chamado||''}" ${fieldsDisabled}/></td>
                 <td><input type="text" data-column="solicitante" value="${p.solicitante||''}" ${fieldsDisabled}/></td>
                 <td><textarea data-column="situacao" ${fieldsDisabled}>${p.situacao||''}</textarea></td>
                 <td><input type="date" data-column="prazo" value="${p.prazo||''}" ${fieldsDisabled}/></td>
                 <td><select data-column="prioridade" ${fieldsDisabled}><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
-                {/* O Índice fica sempre habilitado para admins? Sim. */}
                 <td><input type="number" data-column="priority_index" value="${p.priority_index===null ? '' : p.priority_index}" style="width: 60px; text-align: center;"/></td>
                 <td><input type="text" data-column="priorizado" value="${p.priorizado||''}" ${fieldsDisabled}/></td>
                 <td>
                     <div style="display: flex; flex-direction: column; gap: 5px; align-items: center;">
-                        {/* Aplica o 'disabled' aos botões */}
                         <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;" ${saveDisabled}>Salvar</button>
                         <button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;" ${deleteDisabled}>Excluir</button>
                     </div>
