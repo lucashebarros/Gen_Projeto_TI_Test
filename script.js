@@ -1,6 +1,4 @@
-// 1. Configuração do Cliente Supabase
 
-// Vá em "Project Settings" > "API" no seu painel Supabase para encontrar essas informações.
 
 const SUPABASE_URL = 'https://rprwkinapuwsdpiifrdl.supabase.co';
 
@@ -10,7 +8,6 @@ const { createClient } = supabase;
 
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// 2. Seleção dos Elementos HTML e Estado Global
 const authContainer = document.getElementById('auth-container');
 const authForm = document.getElementById('auth-form');
 const headerAuthSection = document.getElementById('header-auth-section');
@@ -18,10 +15,10 @@ const formWrapper = document.getElementById('form-wrapper');
 const actionsHeader = document.getElementById('actions-header');
 let filtroAtual = 'Todos';
 let usuarioLogado = null;
+let currentUserId = null; // Usado para rastrear mudanças no onAuthStateChange
+let initialLoadComplete = false; // Flag para a lógica do onAuthStateChange
 
-// 3. Funções e Lógica de Autenticação
 function setupAuthListeners() {
-    // Garante listeners únicos
     const closeButton = document.getElementById('close-login-button');
     if (closeButton && !closeButton.dataset.listenerAttached) {
         closeButton.addEventListener('click', () => { authContainer.classList.add('hidden'); });
@@ -39,38 +36,32 @@ function setupAuthListeners() {
                  alert(error.message);
                  button.disabled = false; button.textContent = 'Entrar';
             }
-            // UI recarrega via onAuthStateChange
         });
         authForm.dataset.listenerAttached = 'true';
     }
 }
 async function logout() { await supabaseClient.auth.signOut(); }
 
-// 4. Lógica de Controle de Estado (Admin vs. Público)
 async function entrarModoAdmin(user) {
     usuarioLogado = user;
     authContainer.classList.add('hidden');
-    // Adicionado try-catch para robustez na busca do perfil
     let displayName = user.email;
     try {
         const { data: profile, error } = await supabaseClient.from('profiles').select('full_name').eq('id', user.id).single();
-        if (error && error.code !== 'PGRST116') { console.error("Erro perfil:", error); } // Ignora erro "row not found"
+        if (error && error.code !== 'PGRST116') { console.error("Erro perfil:", error); }
         displayName = profile?.full_name || user.email;
-    } catch (e) {
-        console.error("Exceção ao buscar perfil:", e);
-    }
+    } catch (e) { console.error("Exceção ao buscar perfil:", e); }
     
     headerAuthSection.innerHTML = `<span>Olá, ${displayName}</span><button id="logout-button" style="margin-left: 1rem; cursor: pointer;">Sair</button>`;
     const logoutButton = document.getElementById('logout-button');
     logoutButton?.removeEventListener('click', logout); // Evita duplicar listener
     logoutButton?.addEventListener('click', logout);
 
-    // Formulário de Adição (IDÊNTICO AO SEU FUNCIONAL)
     formWrapper.innerHTML = `
         <div id="form-container" style="margin-bottom: 2rem; background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <h3 style="margin-top: 0;">Adicionar Novo Projeto</h3>
             <form id="add-project-form" style="display: flex; flex-wrap: wrap; row-gap: 1.2rem; column-gap: 2rem;">
-                <div style="flex: 2 1 60%;"><label for="form-nome">Nome do Projeto:</label><input type="text" id="form-nome" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
+                 <div style="flex: 2 1 60%;"><label for="form-nome">Nome do Projeto:</label><input type="text" id="form-nome" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
                 <div style="flex: 1 1 30%;"><label for="form-responsavel">Responsável:</label><select id="form-responsavel" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"><option value="Sistema">Sistema</option><option value="BI">BI</option><option value="Infraestrutura">Infraestrutura</option><option value="Suporte">Suporte</option></select></div>
                 <div style="flex: 1 1 30%;"><label for="form-chamado">Nº do Chamado:</label><input type="text" id="form-chamado" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
                 <div style="flex: 1 1 30%;"><label for="form-solicitante">Solicitante:</label><input type="text" id="form-solicitante" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></div>
@@ -82,20 +73,20 @@ async function entrarModoAdmin(user) {
             </form>
         </div>`;
      const addForm = document.getElementById('add-project-form');
-     if (addForm && !addForm.dataset.listenerAttached) { // Evita duplicar listener
+     if (addForm && !addForm.dataset.listenerAttached) {
          addForm.addEventListener('submit', adicionarProjeto);
          addForm.dataset.listenerAttached = 'true';
      }
 
     if (actionsHeader) actionsHeader.style.display = 'table-cell';
-    carregarProjetos(true); // Chama o carregamento no final
+    await carregarProjetos(true);
 }
 
 function entrarModoPublico() {
     usuarioLogado = null;
     headerAuthSection.innerHTML = `<button id="login-button">Admin / Login</button>`;
     const loginButton = document.getElementById('login-button');
-     if (loginButton && !loginButton.dataset.listenerAttached) { // Evita duplicar listener
+     if (loginButton && !loginButton.dataset.listenerAttached) {
         loginButton.addEventListener('click', () => authContainer.classList.remove('hidden'));
         loginButton.dataset.listenerAttached = 'true';
     }
@@ -104,38 +95,45 @@ function entrarModoPublico() {
     carregarProjetos(false);
 }
 
-// 5. Funções do Gerenciador de Projetos (CRUD)
-
-// REMOVIDO: O objeto priorityOrder não é mais necessário para ordenação
-// const priorityOrder = { 'Alta': 1, 'Média': 2, 'Baixa': 3, '': 4 };
 
 async function carregarProjetos(isAdmin) {
     const colspan = isAdmin ? 11 : 10;
     const projectListTbody = document.getElementById('project-list');
-    if (!projectListTbody) return; // Proteção
+    if (!projectListTbody) { console.error("tbody#project-list não encontrado!"); return; }
     projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Carregando projetos...</td></tr>`;
+
+    // 1. Busca o TOTAL de projetos para saber o N do select de ÍNDICE
+    // Usamos 'rpc' para chamar uma função que conta apenas os projetos do filtro, se houver
+    let N = 0;
+    try {
+        let countQuery = supabaseClient.from('projetos').select('*', { count: 'exact', head: true });
+        if (filtroAtual !== 'Todos') {
+            countQuery = countQuery.eq('responsavel', filtroAtual); // Conta apenas os filtrados
+        }
+        const { count: totalProjectCount, error: countError } = await countQuery;
+        
+        if (countError) throw countError;
+        N = totalProjectCount > 0 ? totalProjectCount : 1; // Garante pelo menos 1
+    } catch (e) {
+        console.error("Erro ao contar projetos (pode afetar o select de índice):", e);
+        const { count: fallbackCount } = await supabaseClient.from('projetos').select('*', { count: 'exact', head: true });
+        N = fallbackCount > 0 ? fallbackCount : 1;
+    }
 
     let query = supabaseClient.from('projetos').select('*');
     if (filtroAtual !== 'Todos') {
         query = query.eq('responsavel', filtroAtual);
     }
-    
-    // ===== ALTERAÇÃO PRINCIPAL =====
-    // Ordena a busca DIRETAMENTE no Supabase, APENAS pelo 'priority_index'.
-    // 'nullsFirst: false' joga os nulos (ou 999) para o final da lista.
     query = query.order('priority_index', { ascending: true, nullsFirst: false });
-    // =================================
-    
-    const { data: projetos, error } = await query; // Pega os dados já ordenados
+
+    const { data: projetos, error } = await query;
 
     if (error) { 
-        console.error("Erro ao buscar projetos:", error);
+        console.error("Erro ao carregar projetos:", error);
         projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; color: red;">Erro ao carregar projetos.</td></tr>`; 
         return; 
     }
 
-    // REMOVIDO: O bloco .sort() que fazia a ordenação aqui no JS foi removido.
-    // const projetos = projetosData.sort((a, b) => { ... });
 
     if (!projetos || projetos.length === 0) { 
         projectListTbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center;">Nenhum projeto encontrado para o filtro "${filtroAtual}".</td></tr>`; 
@@ -146,27 +144,45 @@ async function carregarProjetos(isAdmin) {
     projetos.forEach(p => {
         const tr = document.createElement('tr');
         tr.dataset.projectId = p.id;
+        
+        let indexOptionsHtml = '';
+        if (isAdmin) {
+             const maxOption = Math.max(N, p.priority_index ?? 0); 
+            for (let i = 1; i <= maxOption; i++) {
+                 if (i === 999 && i > N) continue; 
+                const isSelected = p.priority_index === i;
+                indexOptionsHtml += `<option value="${i}" ${isSelected ? 'selected' : ''}>${i}</option>`;
+            }
+             const currentIndexValue = p.priority_index ?? 999;
+             if (currentIndexValue >= 999 && !indexOptionsHtml.includes(`value="999"`)) {
+                indexOptionsHtml += `<option value="999" selected>999</option>`;
+             } else if (currentIndexValue > N && currentIndexValue < 999 && !indexOptionsHtml.includes(`value="${currentIndexValue}"`)){
+                  indexOptionsHtml += `<option value="${currentIndexValue}" selected>${currentIndexValue}</option>`;
+             }
+        }
 
         if (isAdmin) {
-            // IDÊNTICO AO SEU CÓDIGO FUNCIONAL (com 'prioridade' e 'priority_index')
             tr.innerHTML = `
                 <td>${p.nome}</td>
-                <td><input type="text" data-column="chamado" value="${p.chamado||''}"/></td>
                 <td><select data-column="responsavel"><option value="BI" ${p.responsavel === 'BI' ? 'selected' : ''}>BI</option><option value="Sistema" ${p.responsavel === 'Sistema' ? 'selected' : ''}>Sistema</option><option value="Infraestrutura" ${p.responsavel === 'Infraestrutura' ? 'selected' : ''}>Infraestrutura</option><option value="Suporte" ${p.responsavel === 'Suporte' ? 'selected' : ''}>Suporte</option></select></td>
+                <td><input type="text" data-column="chamado" value="${p.chamado||''}"/></td>
                 <td><input type="text" data-column="solicitante" value="${p.solicitante||''}"/></td>
                 <td><textarea data-column="situacao">${p.situacao||''}</textarea></td>
                 <td><input type="date" data-column="prazo" value="${p.prazo||''}" /></td>
                 <td><select data-column="prioridade"><option ${p.prioridade==='Alta'?'selected':''}>Alta</option><option ${p.prioridade==='Média'?'selected':''}>Média</option><option ${p.prioridade==='Baixa'?'selected':''}>Baixa</option></select></td>
-                <td><input type="number" data-column="priority_index" value="${p.priority_index === null ? '' : p.priority_index}" style="width: 60px; text-align: center;"/></td>
+                <td>
+                   <select data-column="priority_index" style="width: 70px; text-align: center;">
+                       ${indexOptionsHtml}
+                   </select>
+                </td>
                 <td><input type="text" data-column="priorizado" value="${p.priorizado||''}"/></td>
-                <td> 
+                <td>
                     <div style="display: flex; flex-direction: column; gap: 5px; align-items: center;">
-                        <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Salvar</button> 
+                        <button onclick="salvarAlteracoesProjeto(${p.id}, this)" style="background: #4CAF50; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Salvar</button>
                         <button onclick="deletarProjeto(${p.id}, '${p.nome}')" style="background: #ff4d4d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; width: 80px;">Excluir</button>
                     </div>
                 </td>`;
         } else {
-            // IDÊNTICO AO SEU CÓDIGO FUNCIONAL
             tr.innerHTML = `<td>${p.nome||''}</td><td>${p.chamado||''}</td><td>${p.responsavel||''}</td><td>${p.solicitante||''}</td><td>${p.situacao||''}</td><td>${p.prazo ? new Date(p.prazo).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : ''}</td><td>${p.prioridade||''}</td><td>${p.priority_index ?? ''}</td><td>${p.priorizado||''}</td><td></td>`;
         }
         projectListTbody.appendChild(tr);
@@ -179,8 +195,6 @@ async function adicionarProjeto(event) {
     if (!user) return alert('Sessão expirada.');
 
     const form = event.target;
-    // IDÊNTICO AO SEU CÓDIGO FUNCIONAL
-    // (Ajustado para não enviar 'priority_index: null', deixando o DB usar o DEFAULT 999)
     const formData = {
         nome: form.querySelector('#form-nome').value,
         chamado: form.querySelector('#form-chamado').value,
@@ -191,7 +205,6 @@ async function adicionarProjeto(event) {
         prioridade: form.querySelector('#form-prioridade').value,
         priorizado: form.querySelector('#form-priorizado').value,
         user_id: user.id
-        // priority_index: null, // REMOVIDO para usar o default 999
     };
 
     if (!formData.nome) { alert('O nome do projeto é obrigatório.'); return; }
@@ -212,10 +225,9 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
         const coluna = field.getAttribute('data-column');
         let valor = field.value;
         
-        // IDÊNTICO AO SEU CÓDIGO FUNCIONAL, mas mudando null para 999
         if (coluna === 'priority_index') {
             valor = parseInt(valor, 10);
-            if (isNaN(valor) || valor === null || valor === '') valor = 999; // Usa 999 como fallback
+            if (isNaN(valor) || valor === null || valor === '') valor = 999;
         }
         if (field.type === 'date' && !valor) { valor = null; }
         updateData[coluna] = valor;
@@ -231,7 +243,6 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
         tr.style.outline = '2px solid red'; setTimeout(() => { tr.style.outline = ''; }, 2000);
     } else {
         tr.style.outline = '2px solid lightgreen'; setTimeout(() => { tr.style.outline = ''; }, 1500);
-        // Recarrega se o índice ou prioridade foram alterados (lógica do seu script)
         if (updateData.hasOwnProperty('priority_index') || updateData.hasOwnProperty('prioridade')) {
             carregarProjetos(true);
         }
@@ -246,15 +257,13 @@ async function deletarProjeto(id, nome) {
     }
 }
 
-// Funções expostas globalmente
 window.deletarProjeto = deletarProjeto;
 window.salvarAlteracoesProjeto = salvarAlteracoesProjeto;
 
 function setupFiltros() {
     const botoes = document.querySelectorAll('.filter-btn');
-     if(botoes.length > 0) { // Proteção
+     if(botoes.length > 0) {
         botoes.forEach(botao => {
-             // Garante que só adiciona o listener uma vez
             if (botao.dataset.listenerAttached !== 'true') {
                  botao.addEventListener('click', () => {
                     botoes.forEach(b => b.classList.remove('active'));
@@ -271,53 +280,40 @@ function setupFiltros() {
     }
 }
 
-// Variável para rastrear o ID do usuário (declarada no topo)
-// let currentUserId = null; 
-// let initialLoadComplete = false; // Declarada no topo
-
-// 6. PONTO DE PARTIDA DA APLICAÇÃO (IDÊNTICO AO SEU FUNCIONAL)
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("DOM Carregado. Configurando listeners e verificando sessão...");
     setupAuthListeners();
     setupFiltros();
 
     const { data: { session: initialSession } } = await supabaseClient.auth.getSession();
-    currentUserId = initialSession?.user?.id ?? null; // Define o ID inicial
+    currentUserId = initialSession?.user?.id ?? null;
     if (initialSession && initialSession.user) {
         console.log('Initial load: User is logged in.');
-        await entrarModoAdmin(initialSession.user); // Adicionado await
+        await entrarModoAdmin(initialSession.user);
     } else {
         console.log('Initial load: User is logged out.');
         entrarModoPublico();
     }
-    initialLoadComplete = true; // Marca como completo após render inicial
-    setupFiltros(); // Reconfigura filtros
+    initialLoadComplete = true;
+    setupFiltros();
 
-    supabaseClient.auth.onAuthStateChange(async (_event, session) => { // Adicionado async
-        // Ignora INITIAL_SESSION pois já foi tratado
+    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
         if (_event === 'INITIAL_SESSION') {
             console.log('Auth event: INITIAL_SESSION ignored.');
             return;
         }
-
         const newUserId = session?.user?.id ?? null;
-
         if (newUserId !== currentUserId) {
             console.log('Auth state changed:', _event, ' New user ID:', newUserId);
-            currentUserId = newUserId; // Atualiza o ID rastreado
-
+            currentUserId = newUserId;
             if (session && session.user) {
-                await entrarModoAdmin(session.user); // Adicionado await
+                await entrarModoAdmin(session.user);
             } else {
                 entrarModoPublico();
             }
-            setupFiltros(); // Reconfigura filtros
+            setupFiltros();
         } else {
             console.log('Auth state event ignored (user unchanged):', _event);
         }
     });
 });
-
-// REMOVIDAS as referências globais que não estão definidas
-// window.atualizarCampo = atualizarCampo;
-// window.handleEnterPress = handleEnterPress;
