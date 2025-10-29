@@ -149,14 +149,14 @@ async function carregarProjetos(isAdmin) {
         if (isAdmin) {
              const maxOption = Math.max(N, p.priority_index ?? 0); 
             for (let i = 1; i <= maxOption; i++) {
-                 if (i === 999 && i > N) continue; 
+                 if (i === null && i > N) continue; 
                 const isSelected = p.priority_index === i;
                 indexOptionsHtml += `<option value="${i}" ${isSelected ? 'selected' : ''}>${i}</option>`;
             }
-             const currentIndexValue = p.priority_index ?? 999;
-             if (currentIndexValue >= 999 && !indexOptionsHtml.includes(`value="999"`)) {
-                indexOptionsHtml += `<option value="999" selected>999</option>`;
-             } else if (currentIndexValue > N && currentIndexValue < 999 && !indexOptionsHtml.includes(`value="${currentIndexValue}"`)){
+             const currentIndexValue = p.priority_index ?? null;
+             if (currentIndexValue >= null && !indexOptionsHtml.includes(`value="null"`)) {
+                indexOptionsHtml += `<option value="null" selected>null</option>`;
+             } else if (currentIndexValue > N && currentIndexValue < null && !indexOptionsHtml.includes(`value="${currentIndexValue}"`)){
                   indexOptionsHtml += `<option value="${currentIndexValue}" selected>${currentIndexValue}</option>`;
              }
         }
@@ -227,7 +227,7 @@ async function salvarAlteracoesProjeto(id, buttonElement) {
         
         if (coluna === 'priority_index') {
             valor = parseInt(valor, 10);
-            if (isNaN(valor) || valor === null || valor === '') valor = 999;
+            if (isNaN(valor) || valor === null || valor === '') valor = null;
         }
         if (field.type === 'date' && !valor) { valor = null; }
         updateData[coluna] = valor;
